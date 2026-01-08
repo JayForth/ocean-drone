@@ -42,7 +42,8 @@ export const AUDIO = {
   fadeTime: 3,          // Seconds to fade in/out
   filterFreq: 1000,     // Low-pass filter cutoff
   detuneAmount: 3,      // Cents of detuning for richness
-  baseVolume: -18       // Base volume in dB
+  baseVolume: -18,      // Base volume in dB
+  modeTransitionTime: 30 // Seconds between scale shifts
 };
 
 // Visual settings
