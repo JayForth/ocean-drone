@@ -15,9 +15,9 @@ const __dirname = dirname(__filename);
 const API_KEY = process.env.AIS_API_KEY;
 const PORT = process.env.PORT || 3001;
 
-// English Channel bounding box
+// Dover Strait bounding box
 const BOUNDING_BOX = [
-  [[48.5, -5.0], [52.0, 4.0]]
+  [[50.85, 1.0], [51.25, 2.0]]
 ];
 
 if (!API_KEY) {

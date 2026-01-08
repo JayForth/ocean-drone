@@ -67,9 +67,6 @@ class ShipTracker {
   }
 
   handleMessage(data) {
-    // Debug: log all incoming messages
-    console.log('AIS message:', data.MessageType, data);
-
     // aisstream.io message format
     const msgType = data.MessageType;
     if (msgType !== 'PositionReport') return;
@@ -77,10 +74,7 @@ class ShipTracker {
     const meta = data.MetaData;
     const pos = data.Message?.PositionReport;
 
-    if (!meta || !pos) {
-      console.log('Missing meta or pos:', meta, pos);
-      return;
-    }
+    if (!meta || !pos) return;
 
     const mmsi = meta.MMSI;
     const lat = pos.Latitude;
@@ -92,6 +86,12 @@ class ShipTracker {
 
     // Normalize position to 0-1 range
     const normalized = this.normalizePosition(lat, lon);
+
+    // Filter out ships outside the circular sonar zone
+    const dx = normalized.x - 0.5;
+    const dy = normalized.y - 0.5;
+    const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
+    if (distanceFromCenter > 0.45) return; // Slightly inside edge for visual margin
 
     const shipData = {
       mmsi,

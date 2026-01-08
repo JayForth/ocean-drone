@@ -1,14 +1,26 @@
-// Audio engine using Tone.js - sweep-triggered pings
+// Audio engine using Tone.js - sweep-triggered pings with timbral variation
 import * as Tone from 'tone';
 import { SCALE, NOTE_HUES, AUDIO } from './config.js';
+
+// Different timbres for variety
+const TIMBRES = [
+  { wave: 'sine', filterFreq: 2500, attack: 0.02, release: 1.2 },
+  { wave: 'triangle', filterFreq: 1800, attack: 0.05, release: 1.5 },
+  { wave: 'sine', filterFreq: 3500, attack: 0.01, release: 1.0 },
+  { wave: 'triangle', filterFreq: 2200, attack: 0.08, release: 1.8 },
+  { wave: 'sine', filterFreq: 2000, attack: 0.03, release: 1.4 },
+  { wave: 'triangle', filterFreq: 2800, attack: 0.04, release: 1.3 },
+];
 
 class AudioEngine {
   constructor() {
     this.isStarted = false;
     this.masterVolume = null;
     this.reverb = null;
-    this.synth = null;
-    this.recentPings = new Set(); // Track recently pinged ships to avoid repeats
+    this.synths = []; // Multiple synths for different timbres
+    this.filters = [];
+    this.recentPings = new Set();
+    this.shipTimbres = new Map(); // MMSI -> timbre index
   }
 
   async start() {
@@ -17,39 +29,60 @@ class AudioEngine {
     await Tone.start();
     console.log('Audio context started');
 
-    // Create master effects chain with longer reverb for atmosphere
+    // Create master effects chain
     this.reverb = new Tone.Reverb({
-      decay: 6,
-      wet: 0.5,
-      preDelay: 0.05
+      decay: 5,
+      wet: 0.45,
+      preDelay: 0.03
     }).toDestination();
 
     this.masterVolume = new Tone.Volume(AUDIO.baseVolume).connect(this.reverb);
 
-    // Create a polyphonic synth for pings
-    this.synth = new Tone.PolySynth(Tone.Synth, {
-      oscillator: {
-        type: 'sine'
-      },
-      envelope: {
-        attack: 0.02,
-        decay: 0.3,
-        sustain: 0.2,
-        release: 1.5
-      }
-    });
+    // Create a synth for each timbre
+    for (const timbre of TIMBRES) {
+      const synth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: {
+          type: timbre.wave
+        },
+        envelope: {
+          attack: timbre.attack,
+          decay: 0.2,
+          sustain: 0.15,
+          release: timbre.release
+        }
+      });
 
-    // Filter for warmth
-    this.filter = new Tone.Filter({
-      frequency: 2000,
-      type: 'lowpass',
-      rolloff: -12
-    });
+      const filter = new Tone.Filter({
+        frequency: timbre.filterFreq,
+        type: 'lowpass',
+        rolloff: -12
+      });
 
-    this.synth.connect(this.filter);
-    this.filter.connect(this.masterVolume);
+      synth.connect(filter);
+      filter.connect(this.masterVolume);
+
+      this.synths.push(synth);
+      this.filters.push(filter);
+    }
 
     this.isStarted = true;
+  }
+
+  // Get consistent timbre index for a ship based on MMSI
+  getTimbreIndex(mmsi) {
+    if (!this.shipTimbres.has(mmsi)) {
+      // Use MMSI to deterministically assign a timbre
+      const index = mmsi % TIMBRES.length;
+      this.shipTimbres.set(mmsi, index);
+    }
+    return this.shipTimbres.get(mmsi);
+  }
+
+  // Get subtle detuning for a ship (consistent per ship)
+  getDetune(mmsi) {
+    // Generate a consistent detune value from -8 to +8 cents
+    const hash = (mmsi * 2654435761) % 1000;
+    return (hash / 1000 - 0.5) * 16;
   }
 
   // Map Y position (0-1) to a note in the scale
@@ -80,28 +113,33 @@ class AudioEngine {
     this.recentPings.add(ship.mmsi);
 
     // Clear from recent after a short delay
-    setTimeout(() => this.recentPings.delete(ship.mmsi), 500);
+    setTimeout(() => this.recentPings.delete(ship.mmsi), 400);
 
     const note = this.positionToNote(ship.y);
+    const timbreIndex = this.getTimbreIndex(ship.mmsi);
+    const detune = this.getDetune(ship.mmsi);
+    const synth = this.synths[timbreIndex];
 
     // Distance from center affects volume (closer = louder)
     const dx = ship.x - 0.5;
     const dy = ship.y - 0.5;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    const volume = Math.max(-20, -6 - distance * 15); // -6dB at center, quieter at edges
+    const volume = Math.max(-24, -8 - distance * 20);
 
-    // Trigger the note with short duration
-    this.synth.triggerAttackRelease(note, '8n', undefined, Tone.dbToGain(volume));
+    // Apply detune temporarily
+    synth.set({ detune: detune });
+
+    // Trigger the note
+    synth.triggerAttackRelease(note, '8n', undefined, Tone.dbToGain(volume));
   }
 
-  // Get the number of recent pings (for display)
   getActivePings() {
     return this.recentPings.size;
   }
 
   dispose() {
-    if (this.synth) this.synth.dispose();
-    if (this.filter) this.filter.dispose();
+    for (const synth of this.synths) synth.dispose();
+    for (const filter of this.filters) filter.dispose();
     if (this.masterVolume) this.masterVolume.dispose();
     if (this.reverb) this.reverb.dispose();
   }

@@ -1,22 +1,21 @@
 // Ocean Drone Configuration
 
-// English Channel bounding box (wider area for more ships)
+// Dover Strait bounding box (busy shipping lane)
 export const BOUNDING_BOX = {
-  name: 'English Channel',
-  // Southwest corner (off Brittany)
-  minLat: 48.5,
-  minLon: -5.0,
-  // Northeast corner (North Sea entrance)
-  maxLat: 52.0,
-  maxLon: 4.0
+  name: 'Dover Strait',
+  // Southwest corner
+  minLat: 50.85,
+  minLon: 1.0,
+  // Northeast corner
+  maxLat: 51.25,
+  maxLon: 2.0
 };
 
-// Pentatonic scale notes (C major pentatonic across 3 octaves)
-// These are peaceful and always harmonize
+// Pentatonic scale notes (C major pentatonic - higher octaves for pleasant sound)
 export const SCALE = [
-  'C2', 'D2', 'E2', 'G2', 'A2',
-  'C3', 'D3', 'E3', 'G3', 'A3',
-  'C4', 'D4', 'E4', 'G4', 'A4'
+  'C4', 'D4', 'E4', 'G4', 'A4',
+  'C5', 'D5', 'E5', 'G5', 'A5',
+  'C6'
 ];
 
 // Map notes to hues for visual coloring
