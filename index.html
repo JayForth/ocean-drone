@@ -208,8 +208,16 @@
 
     #hover-tooltip .ship-name {
       font-size: 0.85rem;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       color: rgba(255, 255, 255, 0.95);
+    }
+
+    #hover-tooltip .ship-type {
+      font-size: 0.7rem;
+      opacity: 0.7;
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     }
 
     #hover-tooltip .ship-detail {
@@ -294,6 +302,7 @@
 
   <div id="hover-tooltip">
     <div class="ship-name"></div>
+    <div class="ship-type"></div>
     <div class="ship-detail speed"></div>
     <div class="ship-detail course"></div>
   </div>

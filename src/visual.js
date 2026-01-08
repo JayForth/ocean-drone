@@ -103,7 +103,9 @@ class VisualRenderer {
             mmsi: found.mmsi,
             name: found.name,
             speed: found.speed,
-            course: found.course
+            course: found.course,
+            shipType: found.shipType,
+            country: found.country
           }, e.clientX, e.clientY);
         } else {
           this.onShipHover(null);
@@ -115,7 +117,9 @@ class VisualRenderer {
         mmsi: found.mmsi,
         name: found.name,
         speed: found.speed,
-        course: found.course
+        course: found.course,
+        shipType: found.shipType,
+        country: found.country
       }, e.clientX, e.clientY);
     }
   }
@@ -176,6 +180,8 @@ class VisualRenderer {
       pingBrightness: 0, // Flash when pinged
       speed: ship.speed || 0,
       course: ship.course || 0,
+      shipType: ship.shipType || 'Unknown',
+      country: ship.country || { name: 'Unknown', flag: '🏳️' },
       trail: []
     });
   }
@@ -191,6 +197,8 @@ class VisualRenderer {
     visual.targetY = pos.y;
     visual.speed = ship.speed || 0;
     visual.course = ship.course || 0;
+    if (ship.shipType) visual.shipType = ship.shipType;
+    if (ship.country) visual.country = ship.country;
     if (hue !== undefined) visual.hue = hue;
   }
 

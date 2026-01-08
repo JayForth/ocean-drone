@@ -3,13 +3,14 @@ import * as Tone from 'tone';
 import { SCALE, NOTE_HUES, AUDIO } from './config.js';
 
 // Different timbres for variety
+// Slightly softened attacks with brighter filtering
 const TIMBRES = [
-  { wave: 'sine', filterFreq: 2500, attack: 0.02, release: 1.2 },
-  { wave: 'triangle', filterFreq: 1800, attack: 0.05, release: 1.5 },
-  { wave: 'sine', filterFreq: 3500, attack: 0.01, release: 1.0 },
-  { wave: 'triangle', filterFreq: 2200, attack: 0.08, release: 1.8 },
-  { wave: 'sine', filterFreq: 2000, attack: 0.03, release: 1.4 },
-  { wave: 'triangle', filterFreq: 2800, attack: 0.04, release: 1.3 },
+  { wave: 'sine', filterFreq: 2200, attack: 0.05, release: 1.2 },
+  { wave: 'sine', filterFreq: 1800, attack: 0.06, release: 1.4 },
+  { wave: 'sine', filterFreq: 2500, attack: 0.04, release: 1.0 },
+  { wave: 'sine', filterFreq: 2000, attack: 0.07, release: 1.5 },
+  { wave: 'sine', filterFreq: 2300, attack: 0.05, release: 1.3 },
+  { wave: 'sine', filterFreq: 1900, attack: 0.08, release: 1.6 },
 ];
 
 // Evolving pad chords - all use pentatonic notes for guaranteed harmony
@@ -31,6 +32,7 @@ class AudioEngine {
     this.filters = [];
     this.recentPings = new Set();
     this.shipTimbres = new Map(); // MMSI -> timbre index
+    this.shipNoteIndex = new Map(); // MMSI -> current position in scale (cycles each ping)
 
     // Pad synth state
     this.padSynth = null;
@@ -222,6 +224,25 @@ class AudioEngine {
     return this.getNoteHue(note);
   }
 
+  // Get the next note for a ship (cycles through pentatonic scale)
+  getNextNote(mmsi) {
+    // Initialize with a starting position based on MMSI (so ships start at different points)
+    if (!this.shipNoteIndex.has(mmsi)) {
+      const startIndex = mmsi % SCALE.length;
+      this.shipNoteIndex.set(mmsi, startIndex);
+    }
+
+    // Get current note
+    const currentIndex = this.shipNoteIndex.get(mmsi);
+    const note = SCALE[currentIndex];
+
+    // Advance to next note for next time (cycle through scale)
+    const nextIndex = (currentIndex + 1) % SCALE.length;
+    this.shipNoteIndex.set(mmsi, nextIndex);
+
+    return note;
+  }
+
   // Trigger a ping for a ship (called when sweep passes over it)
   ping(ship) {
     if (!this.isStarted) return;
@@ -233,6 +254,7 @@ class AudioEngine {
     // Clear from recent after a short delay
     setTimeout(() => this.recentPings.delete(ship.mmsi), 400);
 
+    // Position-based note selection (consistent, blends into background)
     const note = this.positionToNote(ship.y);
     const timbreIndex = this.getTimbreIndex(ship.mmsi);
     const detune = this.getDetune(ship.mmsi);

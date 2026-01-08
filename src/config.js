@@ -11,7 +11,7 @@ export const BOUNDING_BOX = {
   maxLon: 2.0
 };
 
-// Pentatonic scale notes (C major pentatonic - higher octaves for pleasant sound)
+// Pentatonic scale notes (C major pentatonic)
 export const SCALE = [
   'C4', 'D4', 'E4', 'G4', 'A4',
   'C5', 'D5', 'E5', 'G5', 'A5',

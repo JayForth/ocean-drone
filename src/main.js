@@ -12,6 +12,7 @@ const locationEl = document.getElementById('location-name');
 const infoPanel = document.getElementById('info-panel');
 const tooltip = document.getElementById('hover-tooltip');
 const tooltipName = tooltip.querySelector('.ship-name');
+const tooltipType = tooltip.querySelector('.ship-type');
 const tooltipSpeed = tooltip.querySelector('.speed');
 const tooltipCourse = tooltip.querySelector('.course');
 
@@ -50,7 +51,8 @@ visual.onShipPing = (ship) => {
 // Hover tooltip handling
 visual.onShipHover = (ship, screenX, screenY) => {
   if (ship) {
-    tooltipName.textContent = ship.name;
+    tooltipName.textContent = `${ship.country?.flag || '🏳️'} ${ship.name}`;
+    tooltipType.textContent = ship.shipType || 'Unknown';
     tooltipSpeed.textContent = `Speed: ${ship.speed.toFixed(1)} knots`;
     tooltipCourse.textContent = `Course: ${Math.round(ship.course)}°`;
     tooltip.style.left = `${screenX + 15}px`;
