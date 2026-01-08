@@ -88,6 +88,25 @@ let aisSocket = null;
 let browserClients = new Set();
 let messageCount = 0;
 
+// Ship cache - stores recent messages so new clients get instant data
+const shipCache = new Map(); // MMSI -> { message, timestamp }
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Clean stale ships from cache periodically
+setInterval(() => {
+  const now = Date.now();
+  let removed = 0;
+  for (const [mmsi, data] of shipCache) {
+    if (now - data.timestamp > CACHE_TTL) {
+      shipCache.delete(mmsi);
+      removed++;
+    }
+  }
+  if (removed > 0) {
+    console.log(`Cleaned ${removed} stale ships from cache, ${shipCache.size} remaining`);
+  }
+}, 60000);
+
 function connectToAIS() {
   console.log('Connecting to aisstream.io...');
 
@@ -103,16 +122,31 @@ function connectToAIS() {
     };
 
     aisSocket.send(JSON.stringify(subscribeMsg));
-    console.log('Subscribed to English Channel area');
+    console.log('Subscribed to Dover Strait area');
   });
 
   aisSocket.on('message', (data) => {
     messageCount++;
     if (messageCount % 100 === 0) {
-      console.log(`Relayed ${messageCount} messages to ${browserClients.size} clients`);
+      console.log(`Relayed ${messageCount} messages, ${shipCache.size} ships cached, ${browserClients.size} clients`);
     }
 
     const message = data.toString();
+
+    // Cache the message by MMSI
+    try {
+      const parsed = JSON.parse(message);
+      if (parsed.MessageType === 'PositionReport' && parsed.MetaData?.MMSI) {
+        shipCache.set(parsed.MetaData.MMSI, {
+          message,
+          timestamp: Date.now()
+        });
+      }
+    } catch (e) {
+      // Ignore parse errors, still relay
+    }
+
+    // Relay to all clients
     for (const client of browserClients) {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
@@ -132,8 +166,15 @@ function connectToAIS() {
 
 // Handle browser client connections
 wss.on('connection', (ws) => {
-  console.log('Browser client connected');
+  console.log(`Browser client connected, sending ${shipCache.size} cached ships`);
   browserClients.add(ws);
+
+  // Send all cached ships immediately
+  for (const [mmsi, data] of shipCache) {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(data.message);
+    }
+  }
 
   ws.on('close', () => {
     console.log('Browser client disconnected');

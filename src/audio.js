@@ -12,6 +12,16 @@ const TIMBRES = [
   { wave: 'triangle', filterFreq: 2800, attack: 0.04, release: 1.3 },
 ];
 
+// Evolving pad chords - all use pentatonic notes for guaranteed harmony
+// Higher octave for airy/ethereal feel
+const PAD_CHORDS = [
+  ['C3', 'G3', 'C4'],   // C power chord
+  ['C3', 'E3', 'G3'],   // C major
+  ['A2', 'C3', 'E3'],   // A minor
+  ['G2', 'C3', 'D3'],   // Gsus4
+  ['A2', 'D3', 'E3'],   // Asus4
+];
+
 class AudioEngine {
   constructor() {
     this.isStarted = false;
@@ -21,14 +31,50 @@ class AudioEngine {
     this.filters = [];
     this.recentPings = new Set();
     this.shipTimbres = new Map(); // MMSI -> timbre index
+
+    // Pad synth state
+    this.padSynth = null;
+    this.padFilter = null;
+    this.padVolume = null;
+    this.currentChordIndex = 0;
+    this.padInterval = null;
+
+    // Ocean ambience state
+    this.oceanNoise = null;
+    this.oceanFilter = null;
+    this.oceanLFO = null;
+    this.oceanVolume = null;
   }
 
   async start() {
     if (this.isStarted) return;
 
-    await Tone.start();
-    console.log('Audio context started');
+    // iOS mute switch bypass: play a silent <audio> element first
+    // This switches iOS from "ambient" mode to "playback" mode
+    await this.unlockiOSAudio();
 
+    // Start Tone.js audio context (required for mobile)
+    await Tone.start();
+
+    // Ensure context is running (mobile sometimes needs extra nudge)
+    if (Tone.context.state !== 'running') {
+      await Tone.context.resume();
+    }
+
+    console.log('Audio context started, state:', Tone.context.state);
+
+    // Initialize all audio components
+    await this.initAudio();
+  }
+
+  // Prime iOS audio context (mute switch will still be respected)
+  async unlockiOSAudio() {
+    // Note: iOS Safari respects the hardware mute switch for Web Audio.
+    // There's no reliable workaround - users must turn off silent mode.
+    return Promise.resolve();
+  }
+
+  async initAudio() {
     // Create master effects chain
     this.reverb = new Tone.Reverb({
       decay: 5,
@@ -65,7 +111,79 @@ class AudioEngine {
       this.filters.push(filter);
     }
 
+    // Create pad synth for evolving chords
+    this.padSynth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: {
+        type: 'sine'
+      },
+      envelope: {
+        attack: 3,
+        decay: 1,
+        sustain: 0.8,
+        release: 4
+      }
+    });
+
+    this.padFilter = new Tone.Filter({
+      frequency: 800,
+      type: 'lowpass',
+      rolloff: -24
+    });
+
+    this.padVolume = new Tone.Volume(-42).connect(this.reverb);
+    this.padSynth.connect(this.padFilter);
+    this.padFilter.connect(this.padVolume);
+
+    // Start the evolving pads
+    this.startPads();
+
+    // Create ocean wave ambience using filtered noise
+    this.oceanNoise = new Tone.Noise('pink').start();
+
+    this.oceanFilter = new Tone.Filter({
+      frequency: 400,
+      type: 'lowpass',
+      rolloff: -24
+    });
+
+    // LFO to modulate filter for wave rhythm
+    this.oceanLFO = new Tone.LFO({
+      frequency: 0.08,  // Slow wave rhythm (~12 second cycle)
+      min: 200,
+      max: 600
+    }).start();
+    this.oceanLFO.connect(this.oceanFilter.frequency);
+
+    this.oceanVolume = new Tone.Volume(-32).connect(this.reverb);
+    this.oceanNoise.connect(this.oceanFilter);
+    this.oceanFilter.connect(this.oceanVolume);
+
     this.isStarted = true;
+  }
+
+  startPads() {
+    // Play the first chord immediately
+    this.playChord(this.currentChordIndex);
+
+    // Cycle through chords every 18 seconds
+    this.padInterval = setInterval(() => {
+      // Release current chord
+      this.padSynth.releaseAll();
+
+      // Move to next chord
+      this.currentChordIndex = (this.currentChordIndex + 1) % PAD_CHORDS.length;
+
+      // Play new chord after a brief moment (allows release to start)
+      setTimeout(() => {
+        this.playChord(this.currentChordIndex);
+      }, 500);
+    }, 18000);
+  }
+
+  playChord(index) {
+    const chord = PAD_CHORDS[index];
+    // Trigger with indefinite duration (will be released manually)
+    this.padSynth.triggerAttack(chord);
   }
 
   // Get consistent timbre index for a ship based on MMSI
@@ -138,6 +256,14 @@ class AudioEngine {
   }
 
   dispose() {
+    if (this.padInterval) clearInterval(this.padInterval);
+    if (this.padSynth) this.padSynth.dispose();
+    if (this.padFilter) this.padFilter.dispose();
+    if (this.padVolume) this.padVolume.dispose();
+    if (this.oceanNoise) this.oceanNoise.dispose();
+    if (this.oceanFilter) this.oceanFilter.dispose();
+    if (this.oceanLFO) this.oceanLFO.dispose();
+    if (this.oceanVolume) this.oceanVolume.dispose();
     for (const synth of this.synths) synth.dispose();
     for (const filter of this.filters) filter.dispose();
     if (this.masterVolume) this.masterVolume.dispose();

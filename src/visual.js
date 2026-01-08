@@ -1,4 +1,4 @@
-// Visual renderer - circular sonar view with colored ship dots
+// Visual renderer - circular sonar view with ship icons and wave animation
 import { VISUAL } from './config.js';
 
 class VisualRenderer {
@@ -8,19 +8,123 @@ class VisualRenderer {
     this.ships = new Map(); // mmsi -> visual ship data
     this.sweepAngle = 0;
     this.prevSweepAngle = 0;
+    this.waveTime = 0; // For wave animation
     this.onShipPing = null; // Callback when sweep hits a ship
+    this.onShipHover = null; // Callback when hovering over a ship
+    this.hoveredShip = null;
+    this.mouseX = 0;
+    this.mouseY = 0;
     this.resize();
 
     window.addEventListener('resize', () => this.resize());
+    document.addEventListener('fullscreenchange', () => this.resize());
+
+    // Mouse tracking for hover
+    this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+    this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
   }
 
   resize() {
-    const size = Math.min(window.innerWidth, window.innerHeight) * 0.85;
-    this.canvas.width = size;
-    this.canvas.height = size;
+    // Detect fullscreen mode
+    const isFullscreen = !!document.fullscreenElement;
+    // Detect if mobile (info panel is below on narrow screens)
+    const isMobile = window.innerWidth <= 900;
+
+    let size;
+    if (isFullscreen) {
+      // In fullscreen, use most of the available space
+      size = Math.min(window.innerWidth, window.innerHeight) - 40;
+    } else if (isMobile) {
+      // On mobile, use most of the width, leave room for panel below
+      size = Math.min(window.innerWidth - 40, window.innerHeight * 0.6);
+    } else {
+      // On desktop, account for side panel
+      const maxSize = Math.min(window.innerWidth - 320, window.innerHeight - 40);
+      size = maxSize * 0.85;
+    }
+    size = Math.max(300, size);
+
+    // Account for device pixel ratio for crisp rendering
+    const dpr = window.devicePixelRatio || 1;
+    this.canvas.width = size * dpr;
+    this.canvas.height = size * dpr;
+    this.canvas.style.width = size + 'px';
+    this.canvas.style.height = size + 'px';
+
+    // Scale context to match DPR
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
     this.centerX = size / 2;
     this.centerY = size / 2;
-    this.radius = size / 2 - 20;
+    this.radius = size / 2 - 25;
+
+    // Recalculate all ship positions for new canvas size
+    this.recalculateShipPositions();
+  }
+
+  recalculateShipPositions() {
+    for (const [mmsi, ship] of this.ships) {
+      const pos = this.normalizedToCanvas(ship.rawX, ship.rawY);
+      ship.targetX = pos.x;
+      ship.targetY = pos.y;
+      // Snap current position to avoid ships drifting during resize
+      ship.currentX = pos.x;
+      ship.currentY = pos.y;
+      // Clear trail to avoid visual glitches
+      ship.trail = [];
+    }
+  }
+
+  handleMouseMove(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    this.mouseX = e.clientX - rect.left;
+    this.mouseY = e.clientY - rect.top;
+
+    // Find ship under cursor
+    let found = null;
+    const hitRadius = 15;
+
+    for (const [mmsi, ship] of this.ships) {
+      if (ship.opacity < 0.5) continue;
+      const dx = this.mouseX - ship.currentX;
+      const dy = this.mouseY - ship.currentY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < hitRadius) {
+        found = ship;
+        break;
+      }
+    }
+
+    if (found !== this.hoveredShip) {
+      this.hoveredShip = found;
+      if (this.onShipHover) {
+        if (found) {
+          this.onShipHover({
+            mmsi: found.mmsi,
+            name: found.name,
+            speed: found.speed,
+            course: found.course
+          }, e.clientX, e.clientY);
+        } else {
+          this.onShipHover(null);
+        }
+      }
+    } else if (found && this.onShipHover) {
+      // Update position even if same ship
+      this.onShipHover({
+        mmsi: found.mmsi,
+        name: found.name,
+        speed: found.speed,
+        course: found.course
+      }, e.clientX, e.clientY);
+    }
+  }
+
+  handleMouseLeave() {
+    this.hoveredShip = null;
+    if (this.onShipHover) {
+      this.onShipHover(null);
+    }
   }
 
   // Convert normalized coords (0-1) to canvas position within circle
@@ -70,6 +174,8 @@ class VisualRenderer {
       hue,
       opacity: 0,
       pingBrightness: 0, // Flash when pinged
+      speed: ship.speed || 0,
+      course: ship.course || 0,
       trail: []
     });
   }
@@ -83,6 +189,8 @@ class VisualRenderer {
     visual.rawY = ship.y;
     visual.targetX = pos.x;
     visual.targetY = pos.y;
+    visual.speed = ship.speed || 0;
+    visual.course = ship.course || 0;
     if (hue !== undefined) visual.hue = hue;
   }
 
@@ -97,6 +205,9 @@ class VisualRenderer {
     const ctx = this.ctx;
     const { centerX, centerY, radius } = this;
 
+    // Update wave animation time
+    this.waveTime += deltaTime;
+
     // Store previous angle for sweep detection
     this.prevSweepAngle = this.sweepAngle;
 
@@ -109,6 +220,9 @@ class VisualRenderer {
     // Clear canvas
     ctx.fillStyle = VISUAL.bgColor;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Draw wave animation (behind everything)
+    this.drawWaves();
 
     // Draw sonar background
     this.drawSonarBackground();
@@ -155,6 +269,9 @@ class VisualRenderer {
         ship.opacity = Math.min(1, ship.opacity + deltaTime * 0.5);
       }
 
+      // Draw trail first (behind ship)
+      this.drawTrail(ship);
+
       // Draw ship
       this.drawShip(ship);
     }
@@ -163,15 +280,44 @@ class VisualRenderer {
     this.drawSweep();
   }
 
+  drawTrail(ship) {
+    if (ship.trail.length < 2) return;
+
+    const ctx = this.ctx;
+    ctx.save();
+
+    // Draw fading line segments
+    for (let i = 1; i < ship.trail.length; i++) {
+      const prev = ship.trail[i - 1];
+      const curr = ship.trail[i];
+
+      // Fade opacity based on position in trail
+      const alpha = (1 - i / ship.trail.length) * 0.4 * ship.opacity;
+
+      ctx.strokeStyle = `hsla(${ship.hue}, 70%, 50%, ${alpha})`;
+      ctx.lineWidth = Math.max(1, 3 - i * 0.3);
+      ctx.lineCap = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(prev.x, prev.y);
+      ctx.lineTo(curr.x, curr.y);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
   drawShip(ship) {
     const ctx = this.ctx;
     const brightness = ship.pingBrightness;
-    const size = VISUAL.shipSize + brightness * 4; // Grow when pinged
-    const glowSize = VISUAL.glowSize + brightness * 15;
+    const isHovered = this.hoveredShip === ship;
+    const hoverBoost = isHovered ? 0.3 : 0;
+    const size = VISUAL.shipSize + brightness * 4 + (isHovered ? 2 : 0);
+    const glowSize = VISUAL.glowSize + brightness * 15 + (isHovered ? 8 : 0);
 
-    // Draw glow (bigger when pinged)
+    // Draw glow (bigger when pinged or hovered)
     ctx.save();
-    ctx.globalAlpha = ship.opacity * (0.3 + brightness * 0.5);
+    ctx.globalAlpha = ship.opacity * (0.3 + brightness * 0.5 + hoverBoost);
     const gradient = ctx.createRadialGradient(
       ship.currentX, ship.currentY, 0,
       ship.currentX, ship.currentY, glowSize
@@ -185,19 +331,107 @@ class VisualRenderer {
     ctx.fill();
     ctx.restore();
 
-    // Draw ship dot
+    // Draw boat silhouette
     ctx.save();
     ctx.globalAlpha = ship.opacity;
+    ctx.translate(ship.currentX, ship.currentY);
+
+    // Convert course (0-360, 0=north, clockwise) to canvas rotation
+    // Canvas: 0 = right, so we subtract 90 degrees
+    const rotation = (ship.course - 90) * (Math.PI / 180);
+    ctx.rotate(rotation);
+
+    // Draw boat shape (pointed at front, flat at back)
+    const len = size * 1.8;
+    const width = size * 0.9;
+
     ctx.fillStyle = `hsl(${ship.hue}, 80%, ${65 + brightness * 25}%)`;
     ctx.beginPath();
-    ctx.arc(ship.currentX, ship.currentY, size, 0, Math.PI * 2);
+    // Bow (front point)
+    ctx.moveTo(len / 2, 0);
+    // Starboard side (right when facing forward)
+    ctx.lineTo(-len / 3, -width / 2);
+    // Stern curve
+    ctx.quadraticCurveTo(-len / 2, 0, -len / 3, width / 2);
+    // Port side (left when facing forward)
+    ctx.closePath();
     ctx.fill();
 
-    // Inner bright spot
-    ctx.fillStyle = `hsl(${ship.hue}, 60%, ${85 + brightness * 15}%)`;
+    // Draw highlight line along center
+    ctx.strokeStyle = `hsl(${ship.hue}, 60%, ${85 + brightness * 15}%)`;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(ship.currentX, ship.currentY, size * 0.4, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(len / 2 - 2, 0);
+    ctx.lineTo(-len / 4, 0);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  drawWaves() {
+    const ctx = this.ctx;
+    const { centerX, centerY, radius } = this;
+
+    ctx.save();
+
+    // Create clipping circle
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius - 1, 0, Math.PI * 2);
+    ctx.clip();
+
+    // Draw flowing wave pattern
+    const waveCount = 8;
+    const waveSpeed = 0.3;
+    const waveAmplitude = 15;
+
+    ctx.strokeStyle = 'rgba(100, 180, 255, 0.03)';
+    ctx.lineWidth = 2;
+
+    for (let w = 0; w < waveCount; w++) {
+      const baseY = -radius + (w + 1) * (radius * 2 / (waveCount + 1));
+      const phaseOffset = w * 0.5;
+
+      ctx.beginPath();
+      for (let x = -radius; x <= radius; x += 3) {
+        const waveY = baseY +
+          Math.sin((x * 0.02) + (this.waveTime * waveSpeed) + phaseOffset) * waveAmplitude +
+          Math.sin((x * 0.01) + (this.waveTime * waveSpeed * 0.7) + phaseOffset * 2) * (waveAmplitude * 0.5);
+
+        const canvasX = centerX + x;
+        const canvasY = centerY + waveY;
+
+        if (x === -radius) {
+          ctx.moveTo(canvasX, canvasY);
+        } else {
+          ctx.lineTo(canvasX, canvasY);
+        }
+      }
+      ctx.stroke();
+    }
+
+    // Add some vertical wave shimmer
+    ctx.strokeStyle = 'rgba(100, 180, 255, 0.02)';
+    for (let w = 0; w < 5; w++) {
+      const baseX = -radius + (w + 1) * (radius * 2 / 6);
+      const phaseOffset = w * 0.7;
+
+      ctx.beginPath();
+      for (let y = -radius; y <= radius; y += 4) {
+        const waveX = baseX +
+          Math.sin((y * 0.015) + (this.waveTime * waveSpeed * 0.5) + phaseOffset) * (waveAmplitude * 0.6);
+
+        const canvasX = centerX + waveX;
+        const canvasY = centerY + y;
+
+        if (y === -radius) {
+          ctx.moveTo(canvasX, canvasY);
+        } else {
+          ctx.lineTo(canvasX, canvasY);
+        }
+      }
+      ctx.stroke();
+    }
+
     ctx.restore();
   }
 
@@ -233,6 +467,34 @@ class VisualRenderer {
     ctx.beginPath();
     ctx.arc(centerX, centerY, 3, 0, Math.PI * 2);
     ctx.fill();
+
+    // Compass markers and labels
+    ctx.font = '12px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // North (top) - UK/Dover
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.fillText('N', centerX, centerY - radius - 14);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillText('UK', centerX, centerY - radius + 20);
+
+    // South (bottom) - France
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = '12px "Courier New", monospace';
+    ctx.fillText('S', centerX, centerY + radius + 14);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillText('FRANCE', centerX, centerY + radius - 20);
+
+    // East (right)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.font = '12px "Courier New", monospace';
+    ctx.fillText('E', centerX + radius + 14, centerY);
+
+    // West (left)
+    ctx.fillText('W', centerX - radius - 14, centerY);
   }
 
   drawSweep() {

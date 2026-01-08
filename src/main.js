@@ -8,13 +8,18 @@ import { BOUNDING_BOX } from './config.js';
 const canvas = document.getElementById('sonar');
 const startScreen = document.getElementById('start-screen');
 const shipCountEl = document.getElementById('ship-count');
-const infoEl = document.getElementById('info');
+const locationEl = document.getElementById('location-name');
+const infoPanel = document.getElementById('info-panel');
+const tooltip = document.getElementById('hover-tooltip');
+const tooltipName = tooltip.querySelector('.ship-name');
+const tooltipSpeed = tooltip.querySelector('.speed');
+const tooltipCourse = tooltip.querySelector('.course');
 
 // Initialize visual renderer
 const visual = new VisualRenderer(canvas);
 
 // Update location display
-infoEl.textContent = BOUNDING_BOX.name;
+locationEl.textContent = BOUNDING_BOX.name;
 
 // Animation state
 let lastTime = 0;
@@ -42,9 +47,23 @@ visual.onShipPing = (ship) => {
   audioEngine.ping(ship);
 };
 
+// Hover tooltip handling
+visual.onShipHover = (ship, screenX, screenY) => {
+  if (ship) {
+    tooltipName.textContent = ship.name;
+    tooltipSpeed.textContent = `Speed: ${ship.speed.toFixed(1)} knots`;
+    tooltipCourse.textContent = `Course: ${Math.round(ship.course)}°`;
+    tooltip.style.left = `${screenX + 15}px`;
+    tooltip.style.top = `${screenY - 10}px`;
+    tooltip.classList.add('visible');
+  } else {
+    tooltip.classList.remove('visible');
+  }
+};
+
 function updateShipCount() {
   const count = shipTracker.getShipCount();
-  shipCountEl.textContent = `Ships: ${count}`;
+  shipCountEl.textContent = count;
 }
 
 // Main render loop
@@ -60,27 +79,66 @@ function animate(time) {
 }
 
 // Start the experience
-async function start() {
+async function start(e) {
   if (isRunning) return;
+  isRunning = true; // Set immediately to prevent double-start
 
-  // Start audio (requires user gesture)
-  await audioEngine.start();
+  // Prevent default to ensure touch works
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
 
-  // Hide start screen
+  // Hide start screen immediately
   startScreen.classList.add('hidden');
+
+  // Show info panel
+  infoPanel.classList.add('visible');
+
+  try {
+    // Start audio (requires user gesture) - do this synchronously with gesture
+    await audioEngine.start();
+  } catch (err) {
+    console.error('Audio start failed:', err);
+  }
 
   // Connect to proxy server
   shipTracker.connect();
 
   // Start render loop
-  isRunning = true;
   lastTime = performance.now();
   requestAnimationFrame(animate);
 }
 
-// Click anywhere to start (required for audio)
-document.addEventListener('click', start, { once: true });
-document.addEventListener('touchstart', start, { once: true });
+// Click/touch anywhere to start (required for audio)
+// Using capture phase for earlier handling on iOS
+function handleStart(e) {
+  start(e);
+}
+
+document.addEventListener('click', handleStart, { once: true, capture: true });
+document.addEventListener('touchend', handleStart, { once: true, capture: true });
+
+// Fullscreen toggle
+const fullscreenBtn = document.getElementById('fullscreen-btn');
+const canvasContainer = document.getElementById('canvas-container');
+
+fullscreenBtn.addEventListener('click', (e) => {
+  e.stopPropagation(); // Don't trigger start
+
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else {
+    canvasContainer.requestFullscreen().catch(err => {
+      console.log('Fullscreen error:', err);
+    });
+  }
+});
+
+// Update button icon when fullscreen changes
+document.addEventListener('fullscreenchange', () => {
+  fullscreenBtn.textContent = document.fullscreenElement ? '⛶' : '⛶';
+});
 
 // Initial render
 visual.render(0);

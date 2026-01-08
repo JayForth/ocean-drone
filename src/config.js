@@ -42,5 +42,5 @@ export const VISUAL = {
   ringColor: 'rgba(255, 255, 255, 0.1)',
   shipSize: 8,
   glowSize: 20,
-  trailLength: 5
+  trailLength: 20
 };
