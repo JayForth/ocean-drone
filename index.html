@@ -208,16 +208,8 @@
 
     #hover-tooltip .ship-name {
       font-size: 0.85rem;
-      margin-bottom: 4px;
-      color: rgba(255, 255, 255, 0.95);
-    }
-
-    #hover-tooltip .ship-type {
-      font-size: 0.7rem;
-      opacity: 0.7;
       margin-bottom: 6px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.95);
     }
 
     #hover-tooltip .ship-detail {
@@ -273,27 +265,27 @@
       </div>
 
       <div class="info-section">
-        <h2>PITCH LEGEND</h2>
+        <h2>SPEED</h2>
         <div class="legend">
           <div class="legend-item">
-            <div class="legend-color" style="background: hsl(270, 80%, 60%)"></div>
-            <span>High (A) - Top</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: hsl(180, 80%, 60%)"></div>
-            <span>Mid-High (G)</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: hsl(120, 80%, 60%)"></div>
-            <span>Middle (E)</span>
+            <div class="legend-color" style="background: hsl(15, 80%, 60%)"></div>
+            <span>Fast (18+ kn)</span>
           </div>
           <div class="legend-item">
             <div class="legend-color" style="background: hsl(45, 80%, 60%)"></div>
-            <span>Mid-Low (D)</span>
+            <span>Medium (12-18 kn)</span>
           </div>
           <div class="legend-item">
-            <div class="legend-color" style="background: hsl(15, 80%, 60%)"></div>
-            <span>Low (C) - Bottom</span>
+            <div class="legend-color" style="background: hsl(120, 80%, 60%)"></div>
+            <span>Slow (6-12 kn)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: hsl(180, 80%, 60%)"></div>
+            <span>Very Slow (2-6 kn)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: hsl(270, 80%, 60%)"></div>
+            <span>Anchored (0-2 kn)</span>
           </div>
         </div>
       </div>
@@ -302,7 +294,6 @@
 
   <div id="hover-tooltip">
     <div class="ship-name"></div>
-    <div class="ship-type"></div>
     <div class="ship-detail speed"></div>
     <div class="ship-detail course"></div>
   </div>

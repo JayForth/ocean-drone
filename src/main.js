@@ -2,7 +2,17 @@
 import { shipTracker } from './ships.js';
 import { audioEngine } from './audio.js';
 import { VisualRenderer } from './visual.js';
-import { BOUNDING_BOX } from './config.js';
+import { BOUNDING_BOX, SPEED_COLORS } from './config.js';
+
+// Get hue based on ship speed
+function getSpeedHue(speed) {
+  for (const range of SPEED_COLORS) {
+    if (speed <= range.max) {
+      return range.hue;
+    }
+  }
+  return SPEED_COLORS[SPEED_COLORS.length - 1].hue;
+}
 
 // DOM elements
 const canvas = document.getElementById('sonar');
@@ -12,7 +22,6 @@ const locationEl = document.getElementById('location-name');
 const infoPanel = document.getElementById('info-panel');
 const tooltip = document.getElementById('hover-tooltip');
 const tooltipName = tooltip.querySelector('.ship-name');
-const tooltipType = tooltip.querySelector('.ship-type');
 const tooltipSpeed = tooltip.querySelector('.speed');
 const tooltipCourse = tooltip.querySelector('.course');
 
@@ -28,13 +37,13 @@ let isRunning = false;
 
 // Connect ship events to visual system
 shipTracker.onShipEnter = (ship) => {
-  const hue = audioEngine.getShipHue(ship.y);
+  const hue = getSpeedHue(ship.speed);
   visual.addShip(ship, hue);
   updateShipCount();
 };
 
 shipTracker.onShipMove = (ship) => {
-  const hue = audioEngine.getShipHue(ship.y);
+  const hue = getSpeedHue(ship.speed);
   visual.updateShip(ship, hue);
 };
 
@@ -51,8 +60,7 @@ visual.onShipPing = (ship) => {
 // Hover tooltip handling
 visual.onShipHover = (ship, screenX, screenY) => {
   if (ship) {
-    tooltipName.textContent = `${ship.country?.flag || '🏳️'} ${ship.name}`;
-    tooltipType.textContent = ship.shipType || 'Unknown';
+    tooltipName.textContent = ship.name;
     tooltipSpeed.textContent = `Speed: ${ship.speed.toFixed(1)} knots`;
     tooltipCourse.textContent = `Course: ${Math.round(ship.course)}°`;
     tooltip.style.left = `${screenX + 15}px`;

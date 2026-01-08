@@ -18,7 +18,7 @@ export const SCALE = [
   'C6'
 ];
 
-// Map notes to hues for visual coloring
+// Map notes to hues for visual coloring (kept for audio)
 export const NOTE_HUES = {
   'C': 15,    // Red-Orange
   'D': 45,    // Yellow-Orange
@@ -26,6 +26,15 @@ export const NOTE_HUES = {
   'G': 180,   // Cyan
   'A': 270    // Purple
 };
+
+// Speed ranges (knots) to hues for visual coloring
+export const SPEED_COLORS = [
+  { max: 2, hue: 270, label: 'Anchored (0-2 kn)' },      // Purple
+  { max: 6, hue: 180, label: 'Very Slow (2-6 kn)' },    // Cyan
+  { max: 12, hue: 120, label: 'Slow (6-12 kn)' },       // Green
+  { max: 18, hue: 45, label: 'Medium (12-18 kn)' },     // Yellow-Orange
+  { max: Infinity, hue: 15, label: 'Fast (18+ kn)' }    // Red-Orange
+];
 
 // Audio settings
 export const AUDIO = {
