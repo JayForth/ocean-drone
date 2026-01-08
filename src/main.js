@@ -99,28 +99,25 @@ async function start(e) {
     e.stopPropagation();
   }
 
+  // Hide start screen immediately
+  startScreen.classList.add('hidden');
+
+  // Show info panel
+  infoPanel.classList.add('visible');
+
   try {
-    // Start ambient audio first (pads + ocean) - requires user gesture
+    // Start audio (requires user gesture)
     await audioEngine.start();
   } catch (err) {
     console.error('Audio start failed:', err);
   }
 
-  // Start render loop immediately (shows empty sonar with ambient audio)
+  // Connect to proxy server
+  shipTracker.connect();
+
+  // Start render loop
   lastTime = performance.now();
   requestAnimationFrame(animate);
-
-  // Delay before hiding title and connecting ships - let ambient establish
-  setTimeout(() => {
-    // Hide start screen
-    startScreen.classList.add('hidden');
-
-    // Show info panel
-    infoPanel.classList.add('visible');
-
-    // Connect to proxy server - ships start appearing
-    shipTracker.connect();
-  }, 2000);
 }
 
 // Click/touch anywhere to start (required for audio)
