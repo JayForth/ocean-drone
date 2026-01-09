@@ -306,28 +306,17 @@ class VisualRenderer {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Draw glow layer first (wider, more transparent)
-    ctx.beginPath();
-    ctx.moveTo(ship.trail[0].x, ship.trail[0].y);
-    for (let i = 1; i < ship.trail.length; i++) {
-      ctx.lineTo(ship.trail[i].x, ship.trail[i].y);
-    }
-    ctx.strokeStyle = `hsla(${ship.hue}, 60%, 50%, ${0.15 * ship.opacity})`;
-    ctx.lineWidth = 6;
-    ctx.stroke();
-
-    // Draw main trail as continuous path with gradient effect
+    // Simple thin trail with fading opacity - DEFCON style
     for (let i = 1; i < ship.trail.length; i++) {
       const prev = ship.trail[i - 1];
       const curr = ship.trail[i];
 
-      // Fade opacity and width based on position in trail
+      // Fade opacity based on position in trail
       const progress = i / ship.trail.length;
-      const alpha = (1 - progress) * 0.6 * ship.opacity;
-      const width = Math.max(0.5, 2.5 * (1 - progress * 0.7));
+      const alpha = (1 - progress) * 0.35 * ship.opacity;
 
-      ctx.strokeStyle = `hsla(${ship.hue}, 70%, 55%, ${alpha})`;
-      ctx.lineWidth = width;
+      ctx.strokeStyle = `hsla(${ship.hue}, 50%, 50%, ${alpha})`;
+      ctx.lineWidth = 1;
 
       ctx.beginPath();
       ctx.moveTo(prev.x, prev.y);
