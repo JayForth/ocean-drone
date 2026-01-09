@@ -240,6 +240,11 @@ class VisualRenderer {
     // Draw wave animation (behind everything)
     this.drawWaves();
 
+    // Draw land fill to mask waves behind coastlines
+    if (this.coastlineRenderer) {
+      this.coastlineRenderer.drawLandFill(ctx, centerX, centerY, radius);
+    }
+
     // Draw coastlines (behind sonar grid and ships)
     if (this.coastlineRenderer) {
       this.coastlineRenderer.draw(ctx, centerX, centerY, radius);

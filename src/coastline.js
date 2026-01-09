@@ -1,5 +1,5 @@
 // Coastline renderer - loads and displays Dover Strait coastlines
-import { BOUNDING_BOX, COASTLINE } from './config.js';
+import { BOUNDING_BOX, COASTLINE, VISUAL } from './config.js';
 
 // Major ports in the Dover Strait area
 const PORTS = [
@@ -74,6 +74,85 @@ class CoastlineRenderer {
       const canvas = this.normalizedToCanvas(normalized.x, normalized.y);
       return { name: port.name, ...canvas, normalized };
     });
+  }
+
+  // Draw filled land areas to mask waves
+  drawLandFill(ctx, centerX, centerY, radius) {
+    if (!this.loaded || this.canvasPaths.length === 0) return;
+
+    // Update paths if dimensions changed
+    if (centerX !== this.centerX || centerY !== this.centerY || radius !== this.radius) {
+      this.updateCanvasPaths(centerX, centerY, radius);
+    }
+
+    ctx.save();
+
+    // Clip to circular sonar area
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius - 1, 0, Math.PI * 2);
+    ctx.clip();
+
+    ctx.fillStyle = VISUAL.bgColor;
+
+    for (let i = 0; i < this.canvasPaths.length; i++) {
+      const path = this.canvasPaths[i];
+      const normalizedPath = this.normalizedPaths[i];
+      if (path.length < 2) continue;
+
+      // Calculate average normalized position to determine if UK or France
+      let avgX = 0, avgY = 0;
+      for (const pt of normalizedPath) {
+        avgX += pt.x;
+        avgY += pt.y;
+      }
+      avgX /= normalizedPath.length;
+      avgY /= normalizedPath.length;
+
+      // UK is northwest (low x, high y), France is southeast (high x, low y)
+      const isUK = avgX < 0.5;
+
+      ctx.beginPath();
+
+      if (isUK) {
+        // UK: fill from coastline to top-left
+        // Start from first point, go to top-left corner area, around to last point
+        const first = path[0];
+        const last = path[path.length - 1];
+
+        // Draw the coastline path
+        ctx.moveTo(first.x, first.y);
+        for (let j = 1; j < path.length; j++) {
+          ctx.lineTo(path[j].x, path[j].y);
+        }
+
+        // Extend to edge and fill northwest area
+        // Go to top-left area of radar
+        ctx.lineTo(centerX - radius * 1.5, last.y);
+        ctx.lineTo(centerX - radius * 1.5, centerY - radius * 1.5);
+        ctx.lineTo(first.x, centerY - radius * 1.5);
+        ctx.closePath();
+      } else {
+        // France: fill from coastline to bottom-right
+        const first = path[0];
+        const last = path[path.length - 1];
+
+        // Draw the coastline path
+        ctx.moveTo(first.x, first.y);
+        for (let j = 1; j < path.length; j++) {
+          ctx.lineTo(path[j].x, path[j].y);
+        }
+
+        // Extend to edge and fill southeast area
+        ctx.lineTo(centerX + radius * 1.5, last.y);
+        ctx.lineTo(centerX + radius * 1.5, centerY + radius * 1.5);
+        ctx.lineTo(first.x, centerY + radius * 1.5);
+        ctx.closePath();
+      }
+
+      ctx.fill();
+    }
+
+    ctx.restore();
   }
 
   // Draw coastlines on canvas context
