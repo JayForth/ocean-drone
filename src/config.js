@@ -40,9 +40,9 @@ export const SPEED_COLORS = [
 export const AUDIO = {
   maxDrones: 12,        // Maximum simultaneous drones
   fadeTime: 3,          // Seconds to fade in/out
-  filterFreq: 1000,     // Low-pass filter cutoff
+  filterFreq: 2200,     // Low-pass filter cutoff
   detuneAmount: 3,      // Cents of detuning for richness
-  baseVolume: -18,      // Base volume in dB
+  baseVolume: -15,      // Base volume in dB
   modeTransitionTime: 30 // Seconds between scale shifts
 };
 

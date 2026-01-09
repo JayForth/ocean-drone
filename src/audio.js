@@ -5,12 +5,12 @@ import { NOTE_HUES, AUDIO } from './config.js';
 // Different timbres for variety
 // Slightly softened attacks with brighter filtering
 const TIMBRES = [
-  { wave: 'sine', filterFreq: 2200, attack: 0.05, release: 1.2 },
-  { wave: 'sine', filterFreq: 1800, attack: 0.06, release: 1.4 },
-  { wave: 'sine', filterFreq: 2500, attack: 0.04, release: 1.0 },
-  { wave: 'sine', filterFreq: 2000, attack: 0.07, release: 1.5 },
-  { wave: 'sine', filterFreq: 2300, attack: 0.05, release: 1.3 },
-  { wave: 'sine', filterFreq: 1900, attack: 0.08, release: 1.6 },
+  { wave: 'sine', filterFreq: 2200, attack: 0.05, release: 9.2 },
+  { wave: 'sine', filterFreq: 2200, attack: 0.06, release: 9.2 },
+  { wave: 'sine', filterFreq: 2200, attack: 0.04, release: 9.2 },
+  { wave: 'sine', filterFreq: 2200, attack: 0.07, release: 9.2 },
+  { wave: 'sine', filterFreq: 2200, attack: 0.05, release: 9.2 },
+  { wave: 'sine', filterFreq: 2200, attack: 0.08, release: 9.2 },
 ];
 
 // Circle of fifths progression:
@@ -155,8 +155,8 @@ class AudioEngine {
   async initAudio() {
     // Create master effects chain
     this.reverb = new Tone.Reverb({
-      decay: 5,
-      wet: 0.45,
+      decay: 9,
+      wet: 0.4,
       preDelay: 0.03
     }).toDestination();
 
@@ -209,7 +209,7 @@ class AudioEngine {
     // Pad synth A (starts active with C major)
     this.padSynthA = new Tone.PolySynth(Tone.Synth, padConfig);
     this.padFilterA = new Tone.Filter(filterConfig);
-    this.padVolumeA = new Tone.Volume(-42).connect(this.reverb);
+    this.padVolumeA = new Tone.Volume(-39).connect(this.reverb);
     this.padSynthA.connect(this.padFilterA);
     this.padFilterA.connect(this.padVolumeA);
 
@@ -241,7 +241,7 @@ class AudioEngine {
     }).start();
     this.oceanLFO.connect(this.oceanFilter.frequency);
 
-    this.oceanVolume = new Tone.Volume(-32).connect(this.reverb);
+    this.oceanVolume = new Tone.Volume(-30).connect(this.reverb);
     this.oceanNoise.connect(this.oceanFilter);
     this.oceanFilter.connect(this.oceanVolume);
 
@@ -308,7 +308,7 @@ class AudioEngine {
     // Crossfade over 6 seconds (longer for smoother transition)
     const fadeTime = 6;
     currentVolume.volume.rampTo(-100, fadeTime);
-    nextVolume.volume.rampTo(-42, fadeTime);
+    nextVolume.volume.rampTo(-39, fadeTime);
 
     // After fade completes, clean up old pad
     setTimeout(() => {
