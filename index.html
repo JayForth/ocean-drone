@@ -391,88 +391,66 @@
     <div class="ship-detail course"></div>
   </div>
 
-  <div id="debug-hint">Press D for debug panel</div>
+  <div id="debug-hint">Press D for audio controls</div>
 
   <div id="debug-panel">
-    <h3>INFO PANEL STYLING</h3>
+    <h3>AUDIO CONTROLS</h3>
 
     <div class="control-group">
-      <label>Panel Width</label>
-      <input type="range" id="ctrl-panel-width" min="150" max="400" value="220">
-      <span class="value-display" id="val-panel-width">220px</span>
+      <label>Sweep Speed</label>
+      <input type="range" id="ctrl-sweep-speed" min="0.1" max="2" step="0.05" value="0.8">
+      <span class="value-display" id="val-sweep-speed">0.80</span>
     </div>
 
     <div class="control-group">
-      <label>Section Gap</label>
-      <input type="range" id="ctrl-section-gap" min="8" max="48" value="24">
-      <span class="value-display" id="val-section-gap">24px</span>
+      <label>Reverb Decay</label>
+      <input type="range" id="ctrl-reverb-decay" min="0.5" max="15" step="0.5" value="5">
+      <span class="value-display" id="val-reverb-decay">5.0s</span>
     </div>
 
     <div class="control-group">
-      <label>Section Padding Left</label>
-      <input type="range" id="ctrl-padding-left" min="0" max="32" value="16">
-      <span class="value-display" id="val-padding-left">16px</span>
+      <label>Reverb Wet</label>
+      <input type="range" id="ctrl-reverb-wet" min="0" max="1" step="0.05" value="0.45">
+      <span class="value-display" id="val-reverb-wet">45%</span>
     </div>
 
     <div class="control-group">
-      <label>Border Left Width</label>
-      <input type="range" id="ctrl-border-width" min="0" max="4" value="1">
-      <span class="value-display" id="val-border-width">1px</span>
+      <label>Note Release</label>
+      <input type="range" id="ctrl-note-release" min="0.2" max="4" step="0.1" value="1.3">
+      <span class="value-display" id="val-note-release">1.3s</span>
     </div>
 
     <div class="control-group">
-      <label>H2 Font Size</label>
-      <input type="range" id="ctrl-h2-size" min="0.6" max="2" step="0.05" value="1.1">
-      <span class="value-display" id="val-h2-size">1.1rem</span>
+      <label>Filter Cutoff</label>
+      <input type="range" id="ctrl-filter-freq" min="200" max="5000" step="100" value="2000">
+      <span class="value-display" id="val-filter-freq">2000Hz</span>
     </div>
 
     <div class="control-group">
-      <label>H2 Letter Spacing</label>
-      <input type="range" id="ctrl-h2-spacing" min="0" max="0.4" step="0.02" value="0.2">
-      <span class="value-display" id="val-h2-spacing">0.2em</span>
+      <label>Master Volume</label>
+      <input type="range" id="ctrl-master-vol" min="-40" max="0" step="1" value="-18">
+      <span class="value-display" id="val-master-vol">-18dB</span>
     </div>
 
     <div class="control-group">
-      <label>Paragraph Font Size</label>
-      <input type="range" id="ctrl-p-size" min="0.5" max="1.2" step="0.05" value="0.75">
-      <span class="value-display" id="val-p-size">0.75rem</span>
+      <label>Drone Volume</label>
+      <input type="range" id="ctrl-pad-vol" min="-60" max="-20" step="1" value="-42">
+      <span class="value-display" id="val-pad-vol">-42dB</span>
     </div>
 
     <div class="control-group">
-      <label>Ship Count Size</label>
-      <input type="range" id="ctrl-count-size" min="1" max="4" step="0.1" value="1.5">
-      <span class="value-display" id="val-count-size">1.5rem</span>
+      <label>Ocean Volume</label>
+      <input type="range" id="ctrl-ocean-vol" min="-60" max="-10" step="1" value="-32">
+      <span class="value-display" id="val-ocean-vol">-32dB</span>
     </div>
 
-    <div class="control-group">
-      <label>Legend Item Size</label>
-      <input type="range" id="ctrl-legend-size" min="0.5" max="1" step="0.05" value="0.7">
-      <span class="value-display" id="val-legend-size">0.7rem</span>
-    </div>
-
-    <div class="control-group">
-      <label>Legend Dot Size</label>
-      <input type="range" id="ctrl-dot-size" min="6" max="20" value="12">
-      <span class="value-display" id="val-dot-size">12px</span>
-    </div>
-
-    <div class="control-group">
-      <label>Text Align</label>
-      <select id="ctrl-text-align">
-        <option value="left" selected>Left</option>
-        <option value="center">Center</option>
-        <option value="right">Right</option>
-      </select>
-    </div>
-
-    <button id="copy-css">Copy CSS Values</button>
+    <button id="copy-settings">Copy Settings</button>
   </div>
 
   <script>
     // Debug panel functionality
     const debugPanel = document.getElementById('debug-panel');
     const debugHint = document.getElementById('debug-hint');
-    const infoPanel = document.getElementById('info-panel');
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'd' || e.key === 'D') {
@@ -481,104 +459,79 @@
       }
     });
 
-    // Control mappings
-    const controls = {
-      'ctrl-panel-width': {
-        target: '#info-panel',
-        prop: 'width',
-        unit: 'px',
-        also: ['minWidth']
+    // Audio control mappings
+    const audioControls = {
+      'ctrl-sweep-speed': {
+        setter: (v) => window.visual?.setSweepSpeed(v),
+        format: (v) => v.toFixed(2),
+        parse: parseFloat
       },
-      'ctrl-section-gap': {
-        target: '#info-panel',
-        prop: 'gap',
-        unit: 'px'
+      'ctrl-reverb-decay': {
+        setter: (v) => window.audioEngine?.setReverbDecay(v),
+        format: (v) => v.toFixed(1) + 's',
+        parse: parseFloat
       },
-      'ctrl-padding-left': {
-        target: '.info-section',
-        prop: 'paddingLeft',
-        unit: 'px'
+      'ctrl-reverb-wet': {
+        setter: (v) => window.audioEngine?.setReverbWet(v),
+        format: (v) => Math.round(v * 100) + '%',
+        parse: parseFloat
       },
-      'ctrl-border-width': {
-        target: '.info-section',
-        prop: 'borderLeftWidth',
-        unit: 'px'
+      'ctrl-note-release': {
+        setter: (v) => window.audioEngine?.setNoteRelease(v),
+        format: (v) => v.toFixed(1) + 's',
+        parse: parseFloat
       },
-      'ctrl-h2-size': {
-        target: '#info-panel h2',
-        prop: 'fontSize',
-        unit: 'rem'
+      'ctrl-filter-freq': {
+        setter: (v) => window.audioEngine?.setFilterFreq(v),
+        format: (v) => Math.round(v) + 'Hz',
+        parse: parseFloat
       },
-      'ctrl-h2-spacing': {
-        target: '#info-panel h2',
-        prop: 'letterSpacing',
-        unit: 'em'
+      'ctrl-master-vol': {
+        setter: (v) => window.audioEngine?.setMasterVolume(v),
+        format: (v) => Math.round(v) + 'dB',
+        parse: parseFloat
       },
-      'ctrl-p-size': {
-        target: '#info-panel p',
-        prop: 'fontSize',
-        unit: 'rem'
+      'ctrl-pad-vol': {
+        setter: (v) => window.audioEngine?.setPadVolume(v),
+        format: (v) => Math.round(v) + 'dB',
+        parse: parseFloat
       },
-      'ctrl-count-size': {
-        target: '#ship-count',
-        prop: 'fontSize',
-        unit: 'rem'
-      },
-      'ctrl-legend-size': {
-        target: '.legend-item',
-        prop: 'fontSize',
-        unit: 'rem'
-      },
-      'ctrl-dot-size': {
-        target: '.legend-color',
-        prop: 'width',
-        unit: 'px',
-        also: ['height']
-      },
-      'ctrl-text-align': {
-        target: '.info-section',
-        prop: 'textAlign',
-        unit: ''
+      'ctrl-ocean-vol': {
+        setter: (v) => window.audioEngine?.setOceanVolume(v),
+        format: (v) => Math.round(v) + 'dB',
+        parse: parseFloat
       }
     };
 
     // Set up listeners
-    Object.keys(controls).forEach(id => {
+    Object.keys(audioControls).forEach(id => {
       const input = document.getElementById(id);
-      const config = controls[id];
+      const config = audioControls[id];
       const valueDisplay = document.getElementById(id.replace('ctrl-', 'val-'));
 
       input.addEventListener('input', () => {
-        const value = input.value + config.unit;
-        const elements = document.querySelectorAll(config.target);
-
-        elements.forEach(el => {
-          el.style[config.prop] = value;
-          if (config.also) {
-            config.also.forEach(p => el.style[p] = value);
-          }
-        });
-
+        const value = config.parse(input.value);
+        config.setter(value);
         if (valueDisplay) {
-          valueDisplay.textContent = value;
+          valueDisplay.textContent = config.format(value);
         }
       });
     });
 
-    // Copy CSS button
-    document.getElementById('copy-css').addEventListener('click', () => {
-      const css = [];
-      Object.keys(controls).forEach(id => {
+    // Copy settings button
+    document.getElementById('copy-settings').addEventListener('click', () => {
+      const settings = {};
+      Object.keys(audioControls).forEach(id => {
         const input = document.getElementById(id);
-        const config = controls[id];
-        css.push(`${config.target} { ${config.prop}: ${input.value}${config.unit}; }`);
+        const name = id.replace('ctrl-', '');
+        settings[name] = audioControls[id].parse(input.value);
       });
 
-      const output = css.join('\n');
+      const output = JSON.stringify(settings, null, 2);
       navigator.clipboard.writeText(output).then(() => {
-        const btn = document.getElementById('copy-css');
+        const btn = document.getElementById('copy-settings');
         btn.textContent = 'Copied!';
-        setTimeout(() => btn.textContent = 'Copy CSS Values', 1500);
+        setTimeout(() => btn.textContent = 'Copy Settings', 1500);
       });
     });
   </script>

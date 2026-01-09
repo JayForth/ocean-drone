@@ -407,6 +407,48 @@ class AudioEngine {
     return this.recentPings.size;
   }
 
+  // Runtime parameter setters for debug panel
+  setReverbDecay(seconds) {
+    if (this.reverb) {
+      this.reverb.decay = seconds;
+    }
+  }
+
+  setReverbWet(wet) {
+    if (this.reverb) {
+      this.reverb.wet.value = wet;
+    }
+  }
+
+  setMasterVolume(db) {
+    if (this.masterVolume) {
+      this.masterVolume.volume.value = db;
+    }
+  }
+
+  setPadVolume(db) {
+    if (this.padVolumeA) this.padVolumeA.volume.value = db;
+    if (this.padVolumeB) this.padVolumeB.volume.value = db;
+  }
+
+  setOceanVolume(db) {
+    if (this.oceanVolume) {
+      this.oceanVolume.volume.value = db;
+    }
+  }
+
+  setNoteRelease(seconds) {
+    for (const synth of this.synths) {
+      synth.set({ envelope: { release: seconds } });
+    }
+  }
+
+  setFilterFreq(freq) {
+    for (const filter of this.filters) {
+      filter.frequency.value = freq;
+    }
+  }
+
   dispose() {
     if (this.padInterval) clearInterval(this.padInterval);
     if (this.modeTransitionInterval) clearInterval(this.modeTransitionInterval);

@@ -8,6 +8,7 @@ class VisualRenderer {
     this.ships = new Map(); // mmsi -> visual ship data
     this.sweepAngle = 0;
     this.prevSweepAngle = 0;
+    this.sweepSpeed = 0.8; // Radians per second multiplier
     this.waveTime = 0; // For wave animation
     this.onShipPing = null; // Callback when sweep hits a ship
     this.onShipHover = null; // Callback when hovering over a ship
@@ -220,7 +221,7 @@ class VisualRenderer {
     this.prevSweepAngle = this.sweepAngle;
 
     // Rotate sweep
-    this.sweepAngle += deltaTime * 0.8; // Slightly faster
+    this.sweepAngle += deltaTime * this.sweepSpeed;
     if (this.sweepAngle > Math.PI * 2) {
       this.sweepAngle -= Math.PI * 2;
     }
@@ -551,6 +552,10 @@ class VisualRenderer {
 
   getShipCount() {
     return this.ships.size;
+  }
+
+  setSweepSpeed(speed) {
+    this.sweepSpeed = speed;
   }
 }
 

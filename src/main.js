@@ -27,6 +27,10 @@ const tooltipCourse = tooltip.querySelector('.course');
 // Initialize visual renderer
 const visual = new VisualRenderer(canvas);
 
+// Expose for debug panel
+window.audioEngine = audioEngine;
+window.visual = visual;
+
 // Animation state
 let lastTime = 0;
 let isRunning = false;
