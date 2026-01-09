@@ -217,6 +217,9 @@ class VisualRenderer {
     // Update wave animation time
     this.waveTime += deltaTime;
 
+    // Update sweep (smooth visuals when tab active)
+    this.updateSweep(deltaTime);
+
     // Clear canvas
     ctx.fillStyle = VISUAL.bgColor;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -227,7 +230,7 @@ class VisualRenderer {
     // Draw sonar background
     this.drawSonarBackground();
 
-    // Update ships (sweep/ping logic handled by updateSweep interval)
+    // Update ships
     for (const [mmsi, ship] of this.ships) {
       // Smooth position interpolation
       const lerp = 0.05;

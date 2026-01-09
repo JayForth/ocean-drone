@@ -33,9 +33,9 @@ window.visual = visual;
 
 // Animation state
 let lastTime = 0;
+let lastSweepTime = 0;
 let isRunning = false;
 let sweepInterval = null;
-let lastSweepTime = 0;
 
 // Connect ship events to visual system
 shipTracker.onShipEnter = (ship) => {
@@ -85,6 +85,9 @@ function animate(time) {
   const deltaTime = Math.min((time - lastTime) / 1000, 0.1);
   lastTime = time;
 
+  // Update shared sweep time (render consumes time, interval won't double-count)
+  lastSweepTime = time;
+
   visual.render(deltaTime);
 
   requestAnimationFrame(animate);
@@ -119,16 +122,20 @@ async function start(e) {
 
   // Start render loop
   lastTime = performance.now();
+  lastSweepTime = lastTime;
   requestAnimationFrame(animate);
 
-  // Start sweep interval (runs in background tabs too)
-  lastSweepTime = performance.now();
+  // Start sweep interval (backup for background tabs)
+  // Uses shared lastSweepTime - when RAF is running it consumes the time,
+  // so interval sees ~0 delta. When tab is backgrounded, interval takes over.
   sweepInterval = setInterval(() => {
     const now = performance.now();
     const deltaTime = Math.min((now - lastSweepTime) / 1000, 0.1);
-    lastSweepTime = now;
-    visual.updateSweep(deltaTime);
-  }, 50); // 20 times per second
+    if (deltaTime > 0.02) { // Only update if RAF hasn't recently (>20ms gap)
+      lastSweepTime = now;
+      visual.updateSweep(deltaTime);
+    }
+  }, 50);
 }
 
 // Click/touch anywhere to start (required for audio)
