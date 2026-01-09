@@ -330,8 +330,11 @@ class VisualRenderer {
     const brightness = ship.pingBrightness;
     const isHovered = this.hoveredShip === ship;
     const hoverBoost = isHovered ? 0.3 : 0;
-    const size = VISUAL.shipSize + brightness * 4 + (isHovered ? 2 : 0);
-    const glowSize = VISUAL.glowSize + brightness * 15 + (isHovered ? 8 : 0);
+
+    // Scale ship size based on radar size (base: 400px radius)
+    const scale = Math.max(0.5, this.radius / 400);
+    const size = (VISUAL.shipSize + brightness * 4 + (isHovered ? 2 : 0)) * scale;
+    const glowSize = (VISUAL.glowSize + brightness * 15 + (isHovered ? 8 : 0)) * scale;
 
     // Draw glow (bigger when pinged or hovered)
     ctx.save();
@@ -377,7 +380,7 @@ class VisualRenderer {
 
     // Draw highlight line along center
     ctx.strokeStyle = `hsl(${ship.hue}, 60%, ${85 + brightness * 15}%)`;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = Math.max(1, 1.5 * scale);
     ctx.beginPath();
     ctx.moveTo(len / 2 - 2, 0);
     ctx.lineTo(-len / 4, 0);
