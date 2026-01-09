@@ -73,12 +73,13 @@
     }
 
     #start-screen {
-      position: absolute;
+      position: fixed;
       inset: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      text-align: center;
       background: rgba(10, 10, 10, 0.95);
       cursor: pointer;
       transition: opacity 0.5s ease;
@@ -94,6 +95,7 @@
       font-size: 2rem;
       font-weight: 300;
       letter-spacing: 0.3em;
+      padding-left: 0.3em; /* Offset for letter-spacing to center properly */
       margin-bottom: 1rem;
       white-space: nowrap;
     }
@@ -102,6 +104,7 @@
       font-size: 0.9rem;
       opacity: 0.6;
       letter-spacing: 0.1em;
+      padding-left: 0.1em; /* Offset for letter-spacing */
     }
 
     #start-screen .ios-hint {
@@ -110,6 +113,7 @@
       margin-top: 1.5rem;
       max-width: 280px;
       line-height: 1.5;
+      text-align: center;
     }
 
     #info-panel {

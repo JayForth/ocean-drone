@@ -52,5 +52,6 @@ export const VISUAL = {
   ringColor: 'rgba(255, 255, 255, 0.1)',
   shipSize: 8,
   glowSize: 20,
-  trailLength: 20
+  trailLength: 150,      // Number of trail points to keep
+  trailMinDistance: 2    // Minimum pixels between trail points
 };

@@ -260,10 +260,20 @@ class VisualRenderer {
       // Decay ping brightness
       ship.pingBrightness = Math.max(0, ship.pingBrightness - deltaTime * 2);
 
-      // Update trail
-      ship.trail.unshift({ x: ship.currentX, y: ship.currentY });
-      if (ship.trail.length > VISUAL.trailLength) {
-        ship.trail.pop();
+      // Update trail - only add point if ship moved enough
+      const lastTrailPoint = ship.trail[0];
+      if (!lastTrailPoint) {
+        ship.trail.unshift({ x: ship.currentX, y: ship.currentY });
+      } else {
+        const dx = ship.currentX - lastTrailPoint.x;
+        const dy = ship.currentY - lastTrailPoint.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist >= VISUAL.trailMinDistance) {
+          ship.trail.unshift({ x: ship.currentX, y: ship.currentY });
+          if (ship.trail.length > VISUAL.trailLength) {
+            ship.trail.pop();
+          }
+        }
       }
 
       // Fade in/out
@@ -293,18 +303,31 @@ class VisualRenderer {
 
     const ctx = this.ctx;
     ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-    // Draw fading line segments
+    // Draw glow layer first (wider, more transparent)
+    ctx.beginPath();
+    ctx.moveTo(ship.trail[0].x, ship.trail[0].y);
+    for (let i = 1; i < ship.trail.length; i++) {
+      ctx.lineTo(ship.trail[i].x, ship.trail[i].y);
+    }
+    ctx.strokeStyle = `hsla(${ship.hue}, 60%, 50%, ${0.15 * ship.opacity})`;
+    ctx.lineWidth = 6;
+    ctx.stroke();
+
+    // Draw main trail as continuous path with gradient effect
     for (let i = 1; i < ship.trail.length; i++) {
       const prev = ship.trail[i - 1];
       const curr = ship.trail[i];
 
-      // Fade opacity based on position in trail
-      const alpha = (1 - i / ship.trail.length) * 0.4 * ship.opacity;
+      // Fade opacity and width based on position in trail
+      const progress = i / ship.trail.length;
+      const alpha = (1 - progress) * 0.6 * ship.opacity;
+      const width = Math.max(0.5, 2.5 * (1 - progress * 0.7));
 
-      ctx.strokeStyle = `hsla(${ship.hue}, 70%, 50%, ${alpha})`;
-      ctx.lineWidth = Math.max(1, 3 - i * 0.3);
-      ctx.lineCap = 'round';
+      ctx.strokeStyle = `hsla(${ship.hue}, 70%, 55%, ${alpha})`;
+      ctx.lineWidth = width;
 
       ctx.beginPath();
       ctx.moveTo(prev.x, prev.y);
