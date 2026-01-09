@@ -9,7 +9,6 @@ class VisualRenderer {
     this.sweepAngle = 0;
     this.prevSweepAngle = 0;
     this.sweepSpeed = 0.8; // Radians per second multiplier
-    this.blipFadeTime = 4; // Seconds for ship blips to fade after sweep hit
     this.waveTime = 0; // For wave animation
     this.onShipPing = null; // Callback when sweep hits a ship
     this.onShipHover = null; // Callback when hovering over a ship
@@ -261,8 +260,8 @@ class VisualRenderer {
       ship.currentX += (ship.targetX - ship.currentX) * lerp;
       ship.currentY += (ship.targetY - ship.currentY) * lerp;
 
-      // Decay ping brightness based on fade time setting
-      ship.pingBrightness = Math.max(0, ship.pingBrightness - deltaTime / this.blipFadeTime);
+      // Decay ping brightness
+      ship.pingBrightness = Math.max(0, ship.pingBrightness - deltaTime * 2);
 
       // Update trail - only add point if ship moved enough
       const lastTrailPoint = ship.trail[0];
@@ -335,13 +334,7 @@ class VisualRenderer {
     const ctx = this.ctx;
     const brightness = ship.pingBrightness;
     const isHovered = this.hoveredShip === ship;
-
-    // Radar-style visibility: ships brighten when hit by sweep, then fade
-    // Hovered ships get a minimum visibility so they're still interactive
-    const radarVisibility = Math.max(brightness, isHovered ? 0.3 : 0);
-
-    // Skip drawing if completely faded
-    if (radarVisibility <= 0.01) return;
+    const hoverBoost = isHovered ? 0.3 : 0;
 
     // Scale ship size based on radar size (base: 400px radius)
     const scale = Math.max(0.5, this.radius / 400);
@@ -350,7 +343,7 @@ class VisualRenderer {
 
     // Draw glow (bigger when pinged or hovered)
     ctx.save();
-    ctx.globalAlpha = ship.opacity * radarVisibility * (0.5 + brightness * 0.5);
+    ctx.globalAlpha = ship.opacity * (0.3 + brightness * 0.5 + hoverBoost);
     const gradient = ctx.createRadialGradient(
       ship.currentX, ship.currentY, 0,
       ship.currentX, ship.currentY, glowSize
@@ -366,7 +359,7 @@ class VisualRenderer {
 
     // Draw boat silhouette
     ctx.save();
-    ctx.globalAlpha = ship.opacity * radarVisibility;
+    ctx.globalAlpha = ship.opacity;
     ctx.translate(ship.currentX, ship.currentY);
 
     // Convert course (0-360, 0=north, clockwise) to canvas rotation
@@ -562,10 +555,6 @@ class VisualRenderer {
 
   setSweepSpeed(speed) {
     this.sweepSpeed = speed;
-  }
-
-  setBlipFadeTime(time) {
-    this.blipFadeTime = time;
   }
 
   // Update sweep and check for pings (can run independently of render)
