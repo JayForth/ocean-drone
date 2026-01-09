@@ -34,6 +34,8 @@ window.visual = visual;
 // Animation state
 let lastTime = 0;
 let isRunning = false;
+let sweepInterval = null;
+let lastSweepTime = 0;
 
 // Connect ship events to visual system
 shipTracker.onShipEnter = (ship) => {
@@ -118,6 +120,15 @@ async function start(e) {
   // Start render loop
   lastTime = performance.now();
   requestAnimationFrame(animate);
+
+  // Start sweep interval (runs in background tabs too)
+  lastSweepTime = performance.now();
+  sweepInterval = setInterval(() => {
+    const now = performance.now();
+    const deltaTime = Math.min((now - lastSweepTime) / 1000, 0.1);
+    lastSweepTime = now;
+    visual.updateSweep(deltaTime);
+  }, 50); // 20 times per second
 }
 
 // Click/touch anywhere to start (required for audio)

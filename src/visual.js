@@ -217,15 +217,6 @@ class VisualRenderer {
     // Update wave animation time
     this.waveTime += deltaTime;
 
-    // Store previous angle for sweep detection
-    this.prevSweepAngle = this.sweepAngle;
-
-    // Rotate sweep
-    this.sweepAngle += deltaTime * this.sweepSpeed;
-    if (this.sweepAngle > Math.PI * 2) {
-      this.sweepAngle -= Math.PI * 2;
-    }
-
     // Clear canvas
     ctx.fillStyle = VISUAL.bgColor;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -236,27 +227,12 @@ class VisualRenderer {
     // Draw sonar background
     this.drawSonarBackground();
 
-    // Check for sweep collisions and update ships
+    // Update ships (sweep/ping logic handled by updateSweep interval)
     for (const [mmsi, ship] of this.ships) {
       // Smooth position interpolation
       const lerp = 0.05;
       ship.currentX += (ship.targetX - ship.currentX) * lerp;
       ship.currentY += (ship.targetY - ship.currentY) * lerp;
-
-      // Check if sweep just passed this ship
-      const shipAngle = this.getAngle(ship.currentX, ship.currentY);
-      if (this.isAngleBetween(shipAngle, this.prevSweepAngle, this.sweepAngle)) {
-        // Trigger ping callback
-        if (this.onShipPing && ship.opacity > 0.5) {
-          this.onShipPing({
-            mmsi: ship.mmsi,
-            x: ship.rawX,
-            y: ship.rawY,
-            name: ship.name
-          });
-        }
-        ship.pingBrightness = 1; // Flash
-      }
 
       // Decay ping brightness
       ship.pingBrightness = Math.max(0, ship.pingBrightness - deltaTime * 2);
@@ -556,6 +532,33 @@ class VisualRenderer {
 
   setSweepSpeed(speed) {
     this.sweepSpeed = speed;
+  }
+
+  // Update sweep and check for pings (can run independently of render)
+  updateSweep(deltaTime) {
+    this.prevSweepAngle = this.sweepAngle;
+    this.sweepAngle += deltaTime * this.sweepSpeed;
+    if (this.sweepAngle > Math.PI * 2) {
+      this.sweepAngle -= Math.PI * 2;
+    }
+
+    // Check for sweep collisions
+    for (const [mmsi, ship] of this.ships) {
+      if (ship.opacity < 0.5) continue;
+
+      const shipAngle = this.getAngle(ship.currentX, ship.currentY);
+      if (this.isAngleBetween(shipAngle, this.prevSweepAngle, this.sweepAngle)) {
+        if (this.onShipPing) {
+          this.onShipPing({
+            mmsi: ship.mmsi,
+            x: ship.rawX,
+            y: ship.rawY,
+            name: ship.name
+          });
+        }
+        ship.pingBrightness = 1;
+      }
+    }
   }
 }
 
