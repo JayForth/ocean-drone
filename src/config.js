@@ -55,3 +55,9 @@ export const VISUAL = {
   trailLength: 150,      // Number of trail points to keep
   trailMinDistance: 2    // Minimum pixels between trail points
 };
+
+// Coastline settings
+export const COASTLINE = {
+  color: 'rgba(100, 160, 120, 0.35)',
+  width: 1.5
+};

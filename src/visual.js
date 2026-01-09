@@ -15,6 +15,7 @@ class VisualRenderer {
     this.hoveredShip = null;
     this.mouseX = 0;
     this.mouseY = 0;
+    this.coastlineRenderer = null; // Optional coastline renderer
     this.resize();
 
     window.addEventListener('resize', () => this.resize());
@@ -61,6 +62,18 @@ class VisualRenderer {
 
     // Recalculate all ship positions for new canvas size
     this.recalculateShipPositions();
+
+    // Update coastline paths for new canvas size
+    if (this.coastlineRenderer?.loaded) {
+      this.coastlineRenderer.updateCanvasPaths(this.centerX, this.centerY, this.radius);
+    }
+  }
+
+  setCoastlineRenderer(renderer) {
+    this.coastlineRenderer = renderer;
+    if (renderer?.loaded) {
+      renderer.updateCanvasPaths(this.centerX, this.centerY, this.radius);
+    }
   }
 
   recalculateShipPositions() {
@@ -226,6 +239,11 @@ class VisualRenderer {
 
     // Draw wave animation (behind everything)
     this.drawWaves();
+
+    // Draw coastlines (behind sonar grid and ships)
+    if (this.coastlineRenderer) {
+      this.coastlineRenderer.draw(ctx, centerX, centerY, radius);
+    }
 
     // Draw sonar background
     this.drawSonarBackground();

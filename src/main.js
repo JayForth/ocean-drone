@@ -2,6 +2,7 @@
 import { shipTracker } from './ships.js';
 import { audioEngine } from './audio.js';
 import { VisualRenderer } from './visual.js';
+import { coastlineRenderer } from './coastline.js';
 import { BOUNDING_BOX, SPEED_COLORS } from './config.js';
 
 // Get hue based on ship speed
@@ -26,6 +27,11 @@ const tooltipCourse = tooltip.querySelector('.course');
 
 // Initialize visual renderer
 const visual = new VisualRenderer(canvas);
+
+// Load coastline (async, graceful failure)
+coastlineRenderer.load('/data/dover-coastline.geojson')
+  .then(() => visual.setCoastlineRenderer(coastlineRenderer))
+  .catch(err => console.warn('Coastline load failed:', err));
 
 // Expose for debug panel
 window.audioEngine = audioEngine;
