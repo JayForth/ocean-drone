@@ -403,6 +403,12 @@
     </div>
 
     <div class="control-group">
+      <label>Blip Fade Time</label>
+      <input type="range" id="ctrl-blip-fade" min="0.5" max="10" step="0.5" value="4">
+      <span class="value-display" id="val-blip-fade">4.0s</span>
+    </div>
+
+    <div class="control-group">
       <label>Reverb Decay</label>
       <input type="range" id="ctrl-reverb-decay" min="0.5" max="15" step="0.5" value="9">
       <span class="value-display" id="val-reverb-decay">9.0s</span>
@@ -464,6 +470,11 @@
       'ctrl-sweep-speed': {
         setter: (v) => window.visual?.setSweepSpeed(v),
         format: (v) => v.toFixed(2),
+        parse: parseFloat
+      },
+      'ctrl-blip-fade': {
+        setter: (v) => window.visual?.setBlipFadeTime(v),
+        format: (v) => v.toFixed(1) + 's',
         parse: parseFloat
       },
       'ctrl-reverb-decay': {
