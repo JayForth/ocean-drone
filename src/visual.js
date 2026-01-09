@@ -494,20 +494,14 @@ class VisualRenderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // North (top) - UK/Dover
+    // North (top)
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.fillText('N', centerX, centerY - radius - 14);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-    ctx.font = '14px "Courier New", monospace';
-    ctx.fillText('UK', centerX, centerY - radius + 20);
 
-    // South (bottom) - France
+    // South (bottom)
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.font = '12px "Courier New", monospace';
     ctx.fillText('S', centerX, centerY + radius + 14);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-    ctx.font = '14px "Courier New", monospace';
-    ctx.fillText('FRANCE', centerX, centerY + radius - 20);
 
     // East (right)
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
