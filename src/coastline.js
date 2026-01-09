@@ -4,7 +4,7 @@ import { BOUNDING_BOX, COASTLINE } from './config.js';
 // Major ports in the Dover Strait area
 const PORTS = [
   { name: 'Dover', lat: 51.127, lon: 1.313 },
-  { name: 'Calais', lat: 50.958, lon: 1.85 },
+  { name: 'Calais', lat: 50.968, lon: 1.852 },
   { name: 'Folkestone', lat: 51.081, lon: 1.166 },
   { name: 'Dunkirk', lat: 51.048, lon: 2.377 },
 ];
