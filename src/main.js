@@ -18,7 +18,6 @@ function getSpeedHue(speed) {
 const canvas = document.getElementById('sonar');
 const startScreen = document.getElementById('start-screen');
 const shipCountEl = document.getElementById('ship-count');
-const locationEl = document.getElementById('location-name');
 const infoPanel = document.getElementById('info-panel');
 const tooltip = document.getElementById('hover-tooltip');
 const tooltipName = tooltip.querySelector('.ship-name');
@@ -27,9 +26,6 @@ const tooltipCourse = tooltip.querySelector('.course');
 
 // Initialize visual renderer
 const visual = new VisualRenderer(canvas);
-
-// Update location display
-locationEl.textContent = BOUNDING_BOX.name;
 
 // Animation state
 let lastTime = 0;
