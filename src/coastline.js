@@ -1,11 +1,20 @@
 // Coastline renderer - loads and displays Dover Strait coastlines
 import { BOUNDING_BOX, COASTLINE } from './config.js';
 
+// Major ports in the Dover Strait area
+const PORTS = [
+  { name: 'Dover', lat: 51.127, lon: 1.313 },
+  { name: 'Calais', lat: 50.968, lon: 1.852 },
+  { name: 'Folkestone', lat: 51.081, lon: 1.166 },
+  { name: 'Dunkirk', lat: 51.048, lon: 2.377 },
+];
+
 class CoastlineRenderer {
   constructor() {
     this.features = [];        // Raw GeoJSON LineStrings
     this.normalizedPaths = []; // Paths in normalized (0-1) space
     this.canvasPaths = [];     // Paths in canvas pixel space
+    this.portPositions = [];   // Pre-computed port canvas positions
     this.loaded = false;
     this.centerX = 0;
     this.centerY = 0;
@@ -58,15 +67,31 @@ class CoastlineRenderer {
     this.canvasPaths = this.normalizedPaths.map(path => {
       return path.map(({ x, y }) => this.normalizedToCanvas(x, y));
     });
+
+    // Update port positions
+    this.portPositions = PORTS.map(port => {
+      const normalized = this.normalizeCoord(port.lon, port.lat);
+      const canvas = this.normalizedToCanvas(normalized.x, normalized.y);
+      return { name: port.name, ...canvas, normalized };
+    });
   }
 
   // Draw coastlines on canvas context
   draw(ctx, centerX, centerY, radius) {
-    if (!this.loaded || this.canvasPaths.length === 0) return;
-
     // Update paths if dimensions changed
     if (centerX !== this.centerX || centerY !== this.centerY || radius !== this.radius) {
       this.updateCanvasPaths(centerX, centerY, radius);
+    }
+
+    // Skip coastline drawing if not loaded, but still draw ports
+    if (!this.loaded || this.canvasPaths.length === 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius - 1, 0, Math.PI * 2);
+      ctx.clip();
+      this.drawPorts(ctx, centerX, centerY, radius);
+      ctx.restore();
+      return;
     }
 
     ctx.save();
@@ -95,7 +120,34 @@ class CoastlineRenderer {
       ctx.stroke();
     }
 
+    // Draw port markers
+    this.drawPorts(ctx, centerX, centerY, radius);
+
     ctx.restore();
+  }
+
+  drawPorts(ctx, centerX, centerY, radius) {
+    ctx.font = '10px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (const port of this.portPositions) {
+      // Check if port is within the visible circle
+      const dx = port.x - centerX;
+      const dy = port.y - centerY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > radius - 20) continue;
+
+      // Draw small anchor/port marker
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.beginPath();
+      ctx.arc(port.x, port.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw port name
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.fillText(port.name, port.x, port.y - 10);
+    }
   }
 }
 
