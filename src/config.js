@@ -4,11 +4,11 @@
 export const BOUNDING_BOX = {
   name: 'Dover Strait',
   // Southwest corner
-  minLat: 50.85,
-  minLon: 1.0,
+  minLat: 50.88,
+  minLon: 1.15,
   // Northeast corner
-  maxLat: 51.25,
-  maxLon: 2.0
+  maxLat: 51.18,
+  maxLon: 1.95
 };
 
 // Pentatonic scale notes (C major pentatonic)
