@@ -536,7 +536,7 @@ class ShipTracker {
 
   removeStaleShips() {
     const now = Date.now();
-    const staleThreshold = 5 * 60 * 1000; // 5 minutes
+    const staleThreshold = 10 * 60 * 1000; // 10 minutes
 
     for (const [mmsi, ship] of this.ships) {
       if (now - ship.lastUpdate > staleThreshold) {

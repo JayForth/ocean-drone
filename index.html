@@ -215,6 +215,28 @@
       margin-top: 3px;
     }
 
+    #hover-tooltip .ship-image-container {
+      margin-top: 8px;
+      display: none;
+    }
+
+    #hover-tooltip .ship-image-container.has-image {
+      display: block;
+    }
+
+    #hover-tooltip .ship-image {
+      width: 100%;
+      max-width: 160px;
+      height: auto;
+      border-radius: 3px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    #hover-tooltip .ship-image.loaded {
+      opacity: 1;
+    }
+
     /* Debug Panel */
     #debug-panel {
       position: fixed;
@@ -389,6 +411,9 @@
     <div class="ship-name"></div>
     <div class="ship-detail speed"></div>
     <div class="ship-detail course"></div>
+    <div class="ship-image-container">
+      <img class="ship-image" alt="" />
+    </div>
   </div>
 
   <div id="debug-hint">Press D for audio controls</div>

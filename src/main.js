@@ -24,6 +24,19 @@ const tooltip = document.getElementById('hover-tooltip');
 const tooltipName = tooltip.querySelector('.ship-name');
 const tooltipSpeed = tooltip.querySelector('.speed');
 const tooltipCourse = tooltip.querySelector('.course');
+const tooltipImageContainer = tooltip.querySelector('.ship-image-container');
+const tooltipImage = tooltip.querySelector('.ship-image');
+
+// Track current image loading state
+let currentImageMmsi = null;
+
+// Get ship image URL (via server proxy to avoid CORS)
+function getShipImageUrl(mmsi, name) {
+  const serverUrl = window.location.port === '5173' ? 'http://localhost:3001' : '';
+  const params = new URLSearchParams({ mmsi });
+  if (name) params.set('name', name);
+  return `${serverUrl}/api/ship-image?${params}`;
+}
 
 // Initialize visual renderer
 const visual = new VisualRenderer(canvas);
@@ -74,8 +87,30 @@ visual.onShipHover = (ship, screenX, screenY) => {
     tooltip.style.left = `${screenX + 15}px`;
     tooltip.style.top = `${screenY - 10}px`;
     tooltip.classList.add('visible');
+
+    // Load ship image if different ship
+    if (currentImageMmsi !== ship.mmsi) {
+      currentImageMmsi = ship.mmsi;
+      tooltipImage.classList.remove('loaded');
+      tooltipImageContainer.classList.remove('has-image');
+
+      tooltipImage.onload = () => {
+        if (currentImageMmsi === ship.mmsi) {
+          tooltipImageContainer.classList.add('has-image');
+          tooltipImage.classList.add('loaded');
+        }
+      };
+      tooltipImage.onerror = () => {
+        tooltipImageContainer.classList.remove('has-image');
+        tooltipImage.classList.remove('loaded');
+      };
+      tooltipImage.src = getShipImageUrl(ship.mmsi, ship.name);
+    }
   } else {
     tooltip.classList.remove('visible');
+    currentImageMmsi = null;
+    tooltipImage.classList.remove('loaded');
+    tooltipImageContainer.classList.remove('has-image');
   }
 };
 

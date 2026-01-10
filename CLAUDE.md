@@ -83,3 +83,60 @@ Each key change:
 - Crossfades the drone chords over 6 seconds
 - Switches ship ping notes to the new pentatonic scale
 - Transition time configurable via `AUDIO.modeTransitionTime` in config.js (default: 30 seconds)
+
+## For AI Agents
+
+**Always read ARCHITECTURE.md first** - it contains detailed documentation of how all systems work together.
+
+### Logging Changes
+
+When making changes to this codebase, **always update the changelog below** so future AI sessions have context:
+
+```
+## Changelog
+
+[DATE] - [SUMMARY]
+- What was changed
+- Why it was changed
+- Files modified
+```
+
+### Deployment
+
+- **Production URL**: https://ocean-drone-production.up.railway.app/
+- **Deploy command**: `railway up` (from project root)
+- **Never deploy without user confirmation**
+- Use `git stash` to save experimental changes before deploying if needed
+
+### Key Gotchas
+
+- The server subscribes to aisstream.io with a **bounding box** - changing regions requires updating `server.js`
+- Audio requires user interaction to start (Web Audio policy)
+- `Tone.PolySynth.set()` for envelopes may not update existing voices - also set `synth.options.envelope.*`
+- Debug panel (press D) has real-time audio controls
+
+---
+
+## Changelog
+
+**2025-01-10** - Ship photo in hover tooltip
+- Added ship image to hover tooltip with fallback chain: MarineTraffic → VesselFinder → FleetMon → Wikimedia Commons
+- Server-side proxy at `/api/ship-image` handles fetching and CORS
+- Wikimedia Commons search uses ship name as fallback when MMSI-based sources fail
+- Image appears below course info with subtle fade-in animation
+- Gracefully hidden if no photo available from any source
+- Files: `index.html`, `src/main.js`, `server.js`
+
+**2025-01-09** - Submarine visual effects
+- Added SVG film grain overlay with subtle flicker animation
+- Added soft green edge glow around radar perimeter
+- Files: `index.html`, `src/visual.js`
+
+**2025-01-09** - Note release fix
+- Fixed `setNoteRelease()` in audio.js to properly update PolySynth envelope
+- Also sets `synth.options.envelope.release` for new voices
+- Files: `src/audio.js`
+
+**2025-01-09** - Architecture documentation
+- Created ARCHITECTURE.md with full system documentation
+- Files: `ARCHITECTURE.md`
