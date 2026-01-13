@@ -3,7 +3,8 @@ import { shipTracker } from './ships.js';
 import { audioEngine } from './audio.js';
 import { VisualRenderer } from './visual.js';
 import { coastlineRenderer } from './coastline.js';
-import { BOUNDING_BOX, SPEED_COLORS } from './config.js';
+import { SPEED_COLORS, ZONES, ZONE_ORDER } from './config.js';
+import { zoneManager } from './zone.js';
 
 // Get hue based on ship speed
 function getSpeedHue(speed) {
@@ -21,22 +22,14 @@ const startScreen = document.getElementById('start-screen');
 const shipCountEl = document.getElementById('ship-count');
 const infoPanel = document.getElementById('info-panel');
 const tooltip = document.getElementById('hover-tooltip');
-const tooltipName = tooltip.querySelector('.ship-name');
-const tooltipSpeed = tooltip.querySelector('.speed');
-const tooltipCourse = tooltip.querySelector('.course');
-const tooltipImageContainer = tooltip.querySelector('.ship-image-container');
-const tooltipImage = tooltip.querySelector('.ship-image');
 
-// Track current image loading state
-let currentImageMmsi = null;
-
-// Get ship image URL (via server proxy to avoid CORS)
-function getShipImageUrl(mmsi, name) {
-  const serverUrl = window.location.port === '5173' ? 'http://localhost:3001' : '';
-  const params = new URLSearchParams({ mmsi });
-  if (name) params.set('name', name);
-  return `${serverUrl}/api/ship-image?${params}`;
-}
+// Zone navigation DOM elements
+const zonePrevBtn = document.getElementById('zone-prev');
+const zoneNextBtn = document.getElementById('zone-next');
+const zoneIndicator = document.getElementById('zone-indicator');
+const zoneName = document.getElementById('zone-name');
+const zoneDots = document.querySelectorAll('.zone-dot');
+const infoPanelTitle = document.querySelector('#info-panel h2');
 
 // Initialize visual renderer
 const visual = new VisualRenderer(canvas);
@@ -81,36 +74,12 @@ visual.onShipPing = (ship) => {
 // Hover tooltip handling
 visual.onShipHover = (ship, screenX, screenY) => {
   if (ship) {
-    tooltipName.textContent = ship.name;
-    tooltipSpeed.textContent = `Speed: ${ship.speed.toFixed(1)} knots`;
-    tooltipCourse.textContent = `Course: ${Math.round(ship.course)}°`;
+    tooltip.textContent = ship.name;
     tooltip.style.left = `${screenX + 15}px`;
     tooltip.style.top = `${screenY - 10}px`;
     tooltip.classList.add('visible');
-
-    // Load ship image if different ship
-    if (currentImageMmsi !== ship.mmsi) {
-      currentImageMmsi = ship.mmsi;
-      tooltipImage.classList.remove('loaded');
-      tooltipImageContainer.classList.remove('has-image');
-
-      tooltipImage.onload = () => {
-        if (currentImageMmsi === ship.mmsi) {
-          tooltipImageContainer.classList.add('has-image');
-          tooltipImage.classList.add('loaded');
-        }
-      };
-      tooltipImage.onerror = () => {
-        tooltipImageContainer.classList.remove('has-image');
-        tooltipImage.classList.remove('loaded');
-      };
-      tooltipImage.src = getShipImageUrl(ship.mmsi, ship.name);
-    }
   } else {
     tooltip.classList.remove('visible');
-    currentImageMmsi = null;
-    tooltipImage.classList.remove('loaded');
-    tooltipImageContainer.classList.remove('has-image');
   }
 };
 
@@ -148,8 +117,9 @@ async function start(e) {
   // Hide start screen immediately
   startScreen.classList.add('hidden');
 
-  // Show info panel
+  // Show info panel and zone indicator
   infoPanel.classList.add('visible');
+  zoneIndicator.classList.add('visible');
 
   try {
     // Start audio (requires user gesture)
@@ -208,6 +178,76 @@ fullscreenBtn.addEventListener('click', (e) => {
 document.addEventListener('fullscreenchange', () => {
   fullscreenBtn.textContent = document.fullscreenElement ? '⛶' : '⛶';
 });
+
+// Zone navigation
+
+// Update UI to reflect current zone
+function updateZoneUI() {
+  const zone = zoneManager.currentZone;
+  const index = zoneManager.currentIndex;
+
+  // Update arrow buttons
+  zonePrevBtn.disabled = !zoneManager.canGoPrev();
+  zoneNextBtn.disabled = !zoneManager.canGoNext();
+
+  // Update zone indicator
+  zoneName.textContent = zone.name.toUpperCase();
+  zoneDots.forEach((dot, i) => {
+    dot.classList.toggle('active', i === index);
+  });
+
+  // Update page title and info panel
+  document.title = `The Song of ${zone.name}`;
+  if (infoPanelTitle) {
+    infoPanelTitle.textContent = `THE SONG OF ${zone.name.toUpperCase()}`;
+  }
+}
+
+// Handle zone change
+zoneManager.onZoneChange = (newZone, prevZone) => {
+  console.log(`Switching from ${prevZone.name} to ${newZone.name}`);
+
+  // Update UI
+  updateZoneUI();
+
+  // Transition audio to new preset
+  audioEngine.applyZonePreset(newZone.audio, 4);
+
+  // Switch ship tracker to new zone (clears ships and requests cached ships)
+  shipTracker.setZone(newZone);
+
+  // Clear visual immediately
+  visual.clearAllShips();
+
+  // Load new coastline (graceful fallback if missing)
+  coastlineRenderer.load(newZone.coastlineUrl)
+    .then(() => visual.setCoastlineRenderer(coastlineRenderer))
+    .catch(err => console.warn('Coastline load failed for zone:', err));
+};
+
+// Zone button handlers
+zonePrevBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  zoneManager.goPrev();
+});
+
+zoneNextBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  zoneManager.goNext();
+});
+
+// Keyboard navigation for zones
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') {
+    zoneManager.goPrev();
+  } else if (e.key === 'ArrowRight') {
+    zoneManager.goNext();
+  }
+});
+
+// Initialize with default zone
+shipTracker.setZone(zoneManager.currentZone);
+updateZoneUI();
 
 // Initial render
 visual.render(0);

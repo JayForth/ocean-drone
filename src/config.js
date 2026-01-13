@@ -1,15 +1,73 @@
 // Ocean Drone Configuration
 
-// Dover Strait bounding box (busy shipping lane)
-export const BOUNDING_BOX = {
-  name: 'Dover Strait',
-  // Southwest corner
-  minLat: 50.88,
-  minLon: 1.15,
-  // Northeast corner
-  maxLat: 51.18,
-  maxLon: 1.95
+// Zone definitions with bounding boxes and audio presets
+export const ZONES = {
+  dover: {
+    id: 'dover',
+    name: 'Dover Strait',
+    description: 'UK-France, busiest short strait',
+    boundingBox: {
+      minLat: 50.88,
+      minLon: 1.15,
+      maxLat: 51.18,
+      maxLon: 1.95
+    },
+    coastlineUrl: '/data/dover-coastline.geojson',
+    // Balanced, moderate energy - the default
+    audio: {
+      modeTransitionTime: 30,
+      reverbDecay: 9,
+      reverbWet: 0.4,
+      noteRelease: 9.2,
+      oceanLfoFreq: 0.08,
+      oceanVolume: -30,
+      padVolume: -39,
+      filterFreq: 2200,
+      padFilterFreq: 800,
+      chordCycleTime: 18
+    }
+  },
+  helsinki: {
+    id: 'helsinki',
+    name: 'Gulf of Finland',
+    description: 'Helsinki-Tallinn corridor, Baltic ferry highway',
+    boundingBox: {
+      minLat: 59.35,
+      minLon: 23.5,
+      maxLat: 60.25,
+      maxLon: 26.0
+    },
+    coastlineUrl: '/data/helsinki-coastline.geojson',
+    // Nordic, spacious - Baltic feel
+    audio: {
+      modeTransitionTime: 35,
+      reverbDecay: 12,
+      reverbWet: 0.5,
+      noteRelease: 10,
+      oceanLfoFreq: 0.05,
+      oceanVolume: -28,
+      padVolume: -37,
+      filterFreq: 1800,
+      padFilterFreq: 650,
+      chordCycleTime: 24
+    }
+  }
 };
+
+export const ZONE_ORDER = ['dover', 'helsinki'];
+export const DEFAULT_ZONE = 'dover';
+
+// Current active bounding box (updated when zone changes)
+export let BOUNDING_BOX = { ...ZONES.dover.boundingBox, name: ZONES.dover.name };
+
+// Function to update the active bounding box
+export function setActiveBoundingBox(zone) {
+  BOUNDING_BOX.minLat = zone.boundingBox.minLat;
+  BOUNDING_BOX.minLon = zone.boundingBox.minLon;
+  BOUNDING_BOX.maxLat = zone.boundingBox.maxLat;
+  BOUNDING_BOX.maxLon = zone.boundingBox.maxLon;
+  BOUNDING_BOX.name = zone.name;
+}
 
 // Pentatonic scale notes (C major pentatonic)
 export const SCALE = [

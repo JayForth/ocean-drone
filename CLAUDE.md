@@ -117,14 +117,61 @@ When making changes to this codebase, **always update the changelog below** so f
 
 ---
 
+## Multi-Zone Architecture (IMPORTANT FOR AI AGENTS)
+
+The app supports multiple shipping zones. Here's how it works:
+
+### Frontend (config.js + zone.js + main.js)
+1. `config.js` exports `ZONES` object with zone definitions (id, name, boundingBox, coastlineUrl, audio presets)
+2. `config.js` exports `ZONE_ORDER` array defining navigation order
+3. `zone.js` exports `zoneManager` singleton that handles zone state and switching
+4. `main.js` imports from both and wires up UI (arrows, dots, keyboard nav)
+
+### Backend (server.js)
+1. `ZONE_BOUNDING_BOXES` object defines bounding boxes per zone (format: `{ min: [lat, lon], max: [lat, lon] }`)
+2. Server subscribes to ALL zones at startup via single aisstream.io connection
+3. Incoming AIS messages are tagged with zone via `detectZone(lat, lon)`
+4. Ship cache keyed by `"zone:mmsi"` to separate ships per zone
+5. `clientZones` Map tracks which zone each WebSocket client is viewing
+6. Clients send `{ type: 'switchZone', zone: 'zoneId' }` to switch zones
+7. Server only relays messages matching client's current zone
+
+### Adding a New Zone
+1. Add zone to `ZONES` in `src/config.js` (with boundingBox, audio preset)
+2. Add zone id to `ZONE_ORDER` in `src/config.js`
+3. Add bounding box to `ZONE_BOUNDING_BOXES` in `server.js`
+4. Add corresponding zone dot `<span class="zone-dot"></span>` in `index.html`
+5. Optionally add coastline GeoJSON to `public/data/{zone}-coastline.geojson`
+
+### Common Mistakes
+- **Mismatched zone counts**: Number of `.zone-dot` elements in index.html must match `ZONE_ORDER.length`
+- **Missing exports**: main.js imports `ZONES`, `ZONE_ORDER` from config.js - if these don't exist, app crashes silently
+- **Server/client mismatch**: Zone IDs must match exactly between config.js and server.js
+
+---
+
 ## Changelog
 
-**2025-01-10** - Ship photo in hover tooltip
-- Added ship image to hover tooltip with fallback chain: MarineTraffic → VesselFinder → FleetMon → Wikimedia Commons
-- Server-side proxy at `/api/ship-image` handles fetching and CORS
-- Wikimedia Commons search uses ship name as fallback when MMSI-based sources fail
-- Image appears below course info with subtle fade-in animation
-- Gracefully hidden if no photo available from any source
+**2025-01-12** - Simplified to Dover + Gibraltar (Alboran Sea)
+- Replaced experimental zones (Suez, Singapore, Liverpool, Solent) with Gibraltar/Alboran Sea
+- Fixed broken app after bad git restore removed multi-zone exports
+- Gibraltar box: 35.5-36.3°N, -4.5 to -2.0°W (ships spreading east from Gibraltar into Med)
+- Added architecture documentation above for future AI sessions
+- Files: `src/config.js`, `server.js`, `index.html`
+
+**2025-01-11** - Multi-zone shipping regions
+- Added three shipping zones: Dover Strait, Suez Canal, Singapore Strait
+- Each zone has distinct musical vibe (Dover=balanced, Suez=sparse/meditative, Singapore=dense/energetic)
+- Arrow buttons flank the radar to switch zones, plus left/right keyboard navigation
+- Server subscribes to all zones, tags messages by region, caches ships per-zone
+- Audio smoothly transitions between zone presets (reverb, filters, timing parameters)
+- Files: `src/config.js`, `src/zone.js` (new), `server.js`, `src/audio.js`, `src/ships.js`, `src/visual.js`, `src/main.js`, `index.html`, `public/data/suez-coastline.geojson` (new), `public/data/singapore-coastline.geojson` (new)
+
+**2025-01-10** - Simplified hover tooltip to name only
+- Removed ship images (external services block server requests)
+- Removed speed and course from tooltip
+- Tooltip now shows only ship name
+- Removed `/api/ship-image` endpoint from server
 - Files: `index.html`, `src/main.js`, `server.js`
 
 **2025-01-09** - Submarine visual effects

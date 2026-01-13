@@ -223,6 +223,11 @@ class VisualRenderer {
     }
   }
 
+  // Clear all ships immediately (used when switching zones)
+  clearAllShips() {
+    this.ships.clear();
+  }
+
   render(deltaTime) {
     const ctx = this.ctx;
     const { centerX, centerY, radius } = this;

@@ -15,10 +15,25 @@ const __dirname = dirname(__filename);
 const API_KEY = process.env.AIS_API_KEY;
 const PORT = process.env.PORT || 3001;
 
-// Dover Strait bounding box
-const BOUNDING_BOX = [
-  [[50.85, 1.0], [51.25, 2.0]]
-];
+// Multi-zone bounding boxes
+const ZONE_BOUNDING_BOXES = {
+  dover: { min: [50.85, 1.0], max: [51.25, 2.0] },
+  helsinki: { min: [59.35, 23.5], max: [60.25, 26.0] }
+};
+
+// Combined bounding boxes for aisstream.io subscription
+const ALL_BOUNDING_BOXES = Object.values(ZONE_BOUNDING_BOXES).map(z => [z.min, z.max]);
+
+// Detect which zone a coordinate belongs to
+function detectZone(lat, lon) {
+  for (const [zoneId, box] of Object.entries(ZONE_BOUNDING_BOXES)) {
+    if (lat >= box.min[0] && lat <= box.max[0] &&
+        lon >= box.min[1] && lon <= box.max[1]) {
+      return zoneId;
+    }
+  }
+  return null;
+}
 
 if (!API_KEY) {
   console.error('Error: AIS_API_KEY not found in environment');
@@ -236,17 +251,21 @@ let aisSocket = null;
 let browserClients = new Set();
 let messageCount = 0;
 
-// Ship cache - stores recent messages so new clients get instant data
-const shipCache = new Map(); // MMSI -> { message, timestamp }
+// Ship cache - stores recent messages per zone so new clients get instant data
+// Key format: "zone:mmsi" -> { message, timestamp, zone }
+const shipCache = new Map();
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+// Track which zone each client is viewing
+const clientZones = new Map(); // ws -> zoneId
 
 // Clean stale ships from cache periodically
 setInterval(() => {
   const now = Date.now();
   let removed = 0;
-  for (const [mmsi, data] of shipCache) {
+  for (const [key, data] of shipCache) {
     if (now - data.timestamp > CACHE_TTL) {
-      shipCache.delete(mmsi);
+      shipCache.delete(key);
       removed++;
     }
   }
@@ -254,6 +273,18 @@ setInterval(() => {
     console.log(`Cleaned ${removed} stale ships from cache, ${shipCache.size} remaining`);
   }
 }, 60000);
+
+// Send cached ships for a specific zone to a client
+function sendCachedShipsForZone(ws, zoneId) {
+  let sent = 0;
+  for (const [key, data] of shipCache) {
+    if (data.zone === zoneId && ws.readyState === WebSocket.OPEN) {
+      ws.send(data.message);
+      sent++;
+    }
+  }
+  return sent;
+}
 
 function connectToAIS() {
   console.log('Connecting to aisstream.io...');
@@ -266,38 +297,63 @@ function connectToAIS() {
 
     const subscribeMsg = {
       APIKey: API_KEY,
-      BoundingBoxes: BOUNDING_BOX
+      BoundingBoxes: ALL_BOUNDING_BOXES
     };
 
     aisSocket.send(JSON.stringify(subscribeMsg));
-    console.log('Subscribed to Dover Strait area');
+    console.log(`Subscribed to ${Object.keys(ZONE_BOUNDING_BOXES).length} zones: ${Object.keys(ZONE_BOUNDING_BOXES).join(', ')}`);
   });
 
   aisSocket.on('message', (data) => {
     messageCount++;
+
     if (messageCount % 100 === 0) {
-      console.log(`Relayed ${messageCount} messages, ${shipCache.size} ships cached, ${browserClients.size} clients`);
+      // Count ships per zone
+      const zoneCounts = {};
+      for (const [key, data] of shipCache) {
+        const z = data.zone;
+        zoneCounts[z] = (zoneCounts[z] || 0) + 1;
+      }
+      console.log(`Relayed ${messageCount} messages, ${shipCache.size} ships cached, ${browserClients.size} clients | zones: ${JSON.stringify(zoneCounts)}`);
     }
 
     const message = data.toString();
 
-    // Cache the message by MMSI
+    // Parse, detect zone, and cache by zone:mmsi
+    let zone = null;
+    let taggedMessage = message;
     try {
       const parsed = JSON.parse(message);
       if (parsed.MessageType === 'PositionReport' && parsed.MetaData?.MMSI) {
-        shipCache.set(parsed.MetaData.MMSI, {
-          message,
-          timestamp: Date.now()
-        });
+        const lat = parsed.Message?.PositionReport?.Latitude;
+        const lon = parsed.Message?.PositionReport?.Longitude;
+        if (lat !== undefined && lon !== undefined) {
+          zone = detectZone(lat, lon);
+        }
+        if (zone) {
+          // Add zone tag to message
+          parsed.zone = zone;
+          taggedMessage = JSON.stringify(parsed);
+
+          // Cache by zone:mmsi
+          shipCache.set(`${zone}:${parsed.MetaData.MMSI}`, {
+            message: taggedMessage,
+            timestamp: Date.now(),
+            zone
+          });
+        }
       }
     } catch (e) {
       // Ignore parse errors, still relay
     }
 
-    // Relay to all clients
+    // Relay to clients viewing this zone (or all if no zone detected)
     for (const client of browserClients) {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
+        const clientZone = clientZones.get(client) || 'dover';
+        if (!zone || zone === clientZone) {
+          client.send(taggedMessage);
+        }
       }
     }
   });
@@ -314,24 +370,40 @@ function connectToAIS() {
 
 // Handle browser client connections
 wss.on('connection', (ws) => {
-  console.log(`Browser client connected, sending ${shipCache.size} cached ships`);
   browserClients.add(ws);
+  clientZones.set(ws, 'dover'); // Default to dover
 
-  // Send all cached ships immediately
-  for (const [mmsi, data] of shipCache) {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(data.message);
+  // Send cached ships for default zone
+  const sent = sendCachedShipsForZone(ws, 'dover');
+  console.log(`Browser client connected, sent ${sent} cached dover ships`);
+
+  // Handle client messages (zone switches)
+  ws.on('message', (msg) => {
+    try {
+      const data = JSON.parse(msg.toString());
+      if (data.type === 'switchZone' && data.zone) {
+        const newZone = data.zone;
+        if (ZONE_BOUNDING_BOXES[newZone]) {
+          clientZones.set(ws, newZone);
+          const sent = sendCachedShipsForZone(ws, newZone);
+          console.log(`Client switched to ${newZone}, sent ${sent} cached ships`);
+        }
+      }
+    } catch (e) {
+      // Ignore parse errors
     }
-  }
+  });
 
   ws.on('close', () => {
     console.log('Browser client disconnected');
     browserClients.delete(ws);
+    clientZones.delete(ws);
   });
 
   ws.on('error', (err) => {
     console.error('Client error:', err.message);
     browserClients.delete(ws);
+    clientZones.delete(ws);
   });
 });
 

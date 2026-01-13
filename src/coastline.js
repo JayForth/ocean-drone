@@ -1,20 +1,13 @@
-// Coastline renderer - loads and displays Dover Strait coastlines
+// Coastline renderer - loads and displays coastlines and ports from geojson
 import { BOUNDING_BOX, COASTLINE, VISUAL } from './config.js';
-
-// Major ports in the Dover Strait area
-const PORTS = [
-  { name: 'Dover', lat: 51.127, lon: 1.313 },
-  { name: 'Calais', lat: 50.968, lon: 1.852 },
-  { name: 'Folkestone', lat: 51.081, lon: 1.166 },
-  { name: 'Dunkirk', lat: 51.048, lon: 2.377 },
-];
 
 class CoastlineRenderer {
   constructor() {
-    this.features = [];        // Raw GeoJSON LineStrings
-    this.normalizedPaths = []; // Paths in normalized (0-1) space
-    this.canvasPaths = [];     // Paths in canvas pixel space
-    this.portPositions = [];   // Pre-computed port canvas positions
+    this.coastlineFeatures = []; // Raw GeoJSON LineStrings
+    this.ports = [];             // Ports extracted from Point features
+    this.normalizedPaths = [];   // Paths in normalized (0-1) space
+    this.canvasPaths = [];       // Paths in canvas pixel space
+    this.portPositions = [];     // Pre-computed port canvas positions
     this.loaded = false;
     this.centerX = 0;
     this.centerY = 0;
@@ -27,16 +20,34 @@ class CoastlineRenderer {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const geojson = await response.json();
-      this.features = geojson.features || [];
+      const features = geojson.features || [];
 
-      // Pre-compute normalized paths
-      this.normalizedPaths = this.features.map(feature => {
+      // Separate LineStrings (coastlines) from Points (ports)
+      this.coastlineFeatures = [];
+      this.ports = [];
+
+      for (const feature of features) {
+        const geomType = feature.geometry?.type;
+        if (geomType === 'LineString') {
+          this.coastlineFeatures.push(feature);
+        } else if (geomType === 'Point' && feature.properties?.type === 'port') {
+          const [lon, lat] = feature.geometry.coordinates;
+          this.ports.push({
+            name: feature.properties.name || 'Unknown',
+            lat,
+            lon
+          });
+        }
+      }
+
+      // Pre-compute normalized paths for coastlines
+      this.normalizedPaths = this.coastlineFeatures.map(feature => {
         const coords = feature.geometry.coordinates;
         return coords.map(([lon, lat]) => this.normalizeCoord(lon, lat));
       });
 
       this.loaded = true;
-      console.log(`Coastline loaded: ${this.features.length} segments`);
+      console.log(`Coastline loaded: ${this.coastlineFeatures.length} segments, ${this.ports.length} ports`);
 
     } catch (err) {
       console.warn('Failed to load coastline:', err.message);
@@ -68,8 +79,8 @@ class CoastlineRenderer {
       return path.map(({ x, y }) => this.normalizedToCanvas(x, y));
     });
 
-    // Update port positions
-    this.portPositions = PORTS.map(port => {
+    // Update port positions from dynamic ports array
+    this.portPositions = this.ports.map(port => {
       const normalized = this.normalizeCoord(port.lon, port.lat);
       const canvas = this.normalizedToCanvas(normalized.x, normalized.y);
       return { name: port.name, ...canvas, normalized };
@@ -99,7 +110,7 @@ class CoastlineRenderer {
       const normalizedPath = this.normalizedPaths[i];
       if (path.length < 2) continue;
 
-      // Calculate average normalized position to determine if UK or France
+      // Calculate average normalized X and Y positions
       let avgX = 0, avgY = 0;
       for (const pt of normalizedPath) {
         avgX += pt.x;
@@ -108,44 +119,46 @@ class CoastlineRenderer {
       avgX /= normalizedPath.length;
       avgY /= normalizedPath.length;
 
-      // UK is northwest (low x, high y), France is southeast (high x, low y)
-      const isUK = avgX < 0.5;
-
       ctx.beginPath();
 
-      if (isUK) {
-        // UK: fill from coastline to top-left
-        // Start from first point, go to top-left corner area, around to last point
-        const first = path[0];
-        const last = path[path.length - 1];
+      const first = path[0];
+      const last = path[path.length - 1];
 
-        // Draw the coastline path
-        ctx.moveTo(first.x, first.y);
-        for (let j = 1; j < path.length; j++) {
-          ctx.lineTo(path[j].x, path[j].y);
-        }
+      // Draw the coastline path
+      ctx.moveTo(first.x, first.y);
+      for (let j = 1; j < path.length; j++) {
+        ctx.lineTo(path[j].x, path[j].y);
+      }
 
-        // Extend to edge and fill northwest area
-        // Go to top-left area of radar
+      // Determine fill direction based on coast position
+      // X-based: coasts on left (avgX < 0.3) fill left, coasts on right (avgX > 0.7) fill right
+      // Y-based fallback: coasts in upper half fill up, lower half fill down
+      console.log(`Coast fill: avgX=${avgX.toFixed(2)}, avgY=${avgY.toFixed(2)}`);
+      if (avgX < 0.3) {
+        // West coast - fill towards left (from coastline to left edge, down to bottom corner)
         ctx.lineTo(centerX - radius * 1.5, last.y);
-        ctx.lineTo(centerX - radius * 1.5, centerY - radius * 1.5);
+        ctx.lineTo(centerX - radius * 1.5, centerY + radius * 1.5);
+        ctx.lineTo(first.x, centerY + radius * 1.5);
+        ctx.closePath();
+      } else if (avgX > 0.7) {
+        // East coast - fill towards right (from coastline to right edge, up to top corner)
+        ctx.lineTo(centerX + radius * 1.5, last.y);
+        ctx.lineTo(centerX + radius * 1.5, centerY - radius * 1.5);
         ctx.lineTo(first.x, centerY - radius * 1.5);
         ctx.closePath();
+      } else if (avgY > 0.5) {
+        // North coast - fill towards top
+        ctx.lineTo(centerX + radius * 1.5, last.y);
+        ctx.lineTo(centerX + radius * 1.5, centerY - radius * 1.5);
+        ctx.lineTo(centerX - radius * 1.5, centerY - radius * 1.5);
+        ctx.lineTo(centerX - radius * 1.5, first.y);
+        ctx.closePath();
       } else {
-        // France: fill from coastline to bottom-right
-        const first = path[0];
-        const last = path[path.length - 1];
-
-        // Draw the coastline path
-        ctx.moveTo(first.x, first.y);
-        for (let j = 1; j < path.length; j++) {
-          ctx.lineTo(path[j].x, path[j].y);
-        }
-
-        // Extend to edge and fill southeast area
+        // South coast - fill towards bottom
         ctx.lineTo(centerX + radius * 1.5, last.y);
         ctx.lineTo(centerX + radius * 1.5, centerY + radius * 1.5);
-        ctx.lineTo(first.x, centerY + radius * 1.5);
+        ctx.lineTo(centerX - radius * 1.5, centerY + radius * 1.5);
+        ctx.lineTo(centerX - radius * 1.5, first.y);
         ctx.closePath();
       }
 

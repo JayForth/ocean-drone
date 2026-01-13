@@ -439,13 +439,110 @@ class AudioEngine {
 
   setNoteRelease(seconds) {
     for (const synth of this.synths) {
+      // Update the voice defaults for new notes
+      synth.options.envelope.release = seconds;
+      // Also try to update via set (may affect active voices)
       synth.set({ envelope: { release: seconds } });
     }
+    // Store for reference
+    this.noteRelease = seconds;
   }
 
   setFilterFreq(freq) {
     for (const filter of this.filters) {
       filter.frequency.value = freq;
+    }
+  }
+
+  setOceanLfoFreq(freq) {
+    if (this.oceanLFO) {
+      this.oceanLFO.frequency.value = freq;
+    }
+  }
+
+  setPadFilterFreq(freq) {
+    if (this.padFilterA) this.padFilterA.frequency.value = freq;
+    if (this.padFilterB) this.padFilterB.frequency.value = freq;
+  }
+
+  setModeTransitionTime(seconds) {
+    // Clear existing interval and restart with new timing
+    if (this.modeTransitionInterval) {
+      clearInterval(this.modeTransitionInterval);
+    }
+    this.modeTransitionTime = seconds;
+    this.modeTransitionInterval = setInterval(() => {
+      this.crossfadeToNextMode();
+    }, seconds * 1000);
+  }
+
+  setChordCycleTime(seconds) {
+    // Clear existing interval and restart with new timing
+    if (this.padInterval) {
+      clearInterval(this.padInterval);
+    }
+    this.chordCycleTime = seconds;
+    this.padInterval = setInterval(() => {
+      const activeSynth = this.activePad === 'A' ? this.padSynthA : this.padSynthB;
+      activeSynth.releaseAll();
+      const chords = MODES[this.currentModeIndex].chords;
+      this.currentChordIndex = (this.currentChordIndex + 1) % chords.length;
+      setTimeout(() => this.playChordOnPad(this.activePad, this.currentChordIndex), 500);
+    }, seconds * 1000);
+  }
+
+  // Apply a zone's audio preset with smooth transitions
+  applyZonePreset(preset, transitionTime = 4) {
+    if (!this.isStarted) {
+      // Store for when audio starts
+      this.pendingPreset = preset;
+      return;
+    }
+
+    console.log('Applying zone audio preset:', preset);
+
+    // Reverb
+    if (preset.reverbDecay !== undefined) {
+      this.reverb.decay = preset.reverbDecay;
+    }
+    if (preset.reverbWet !== undefined) {
+      this.reverb.wet.rampTo(preset.reverbWet, transitionTime);
+    }
+
+    // Note characteristics
+    if (preset.noteRelease !== undefined) {
+      this.setNoteRelease(preset.noteRelease);
+    }
+    if (preset.filterFreq !== undefined) {
+      for (const filter of this.filters) {
+        filter.frequency.rampTo(preset.filterFreq, transitionTime);
+      }
+    }
+
+    // Pad characteristics - ramp the currently active pad
+    if (preset.padVolume !== undefined) {
+      const activeVolume = this.activePad === 'A' ? this.padVolumeA : this.padVolumeB;
+      if (activeVolume) activeVolume.volume.rampTo(preset.padVolume, transitionTime);
+    }
+    if (preset.padFilterFreq !== undefined) {
+      if (this.padFilterA) this.padFilterA.frequency.rampTo(preset.padFilterFreq, transitionTime);
+      if (this.padFilterB) this.padFilterB.frequency.rampTo(preset.padFilterFreq, transitionTime);
+    }
+
+    // Ocean ambience
+    if (preset.oceanVolume !== undefined) {
+      this.oceanVolume?.volume.rampTo(preset.oceanVolume, transitionTime);
+    }
+    if (preset.oceanLfoFreq !== undefined) {
+      this.oceanLFO?.frequency.rampTo(preset.oceanLfoFreq, transitionTime);
+    }
+
+    // Timing parameters (applied immediately, not ramped)
+    if (preset.modeTransitionTime !== undefined) {
+      this.setModeTransitionTime(preset.modeTransitionTime);
+    }
+    if (preset.chordCycleTime !== undefined) {
+      this.setChordCycleTime(preset.chordCycleTime);
     }
   }
 

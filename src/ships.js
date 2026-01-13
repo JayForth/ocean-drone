@@ -1,5 +1,5 @@
 // Ship tracking via aisstream.io WebSocket
-import { BOUNDING_BOX } from './config.js';
+import { BOUNDING_BOX, setActiveBoundingBox } from './config.js';
 
 // AIS ship type codes to readable names
 const SHIP_TYPES = {
@@ -408,6 +408,29 @@ class ShipTracker {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.staleCheckInterval = null;
+    this.currentZone = null;
+  }
+
+  // Set the active zone, clear ships, and request cached ships from server
+  setZone(zone) {
+    if (this.currentZone?.id === zone.id) return;
+
+    console.log(`Switching zone to ${zone.name}`);
+
+    // Clear all existing ships
+    for (const ship of this.ships.values()) {
+      this.onShipExit?.(ship);
+    }
+    this.ships.clear();
+
+    // Update active bounding box for bounds checking
+    this.currentZone = zone;
+    setActiveBoundingBox(zone);
+
+    // Notify server to send cached ships for this zone
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify({ type: 'switchZone', zone: zone.id }));
+    }
   }
 
   connect() {
@@ -467,6 +490,11 @@ class ShipTracker {
     // aisstream.io message format
     const msgType = data.MessageType;
     if (msgType !== 'PositionReport') return;
+
+    // Filter by zone if server tagged the message
+    if (data.zone && this.currentZone && data.zone !== this.currentZone.id) {
+      return;
+    }
 
     const meta = data.MetaData;
     const pos = data.Message?.PositionReport;

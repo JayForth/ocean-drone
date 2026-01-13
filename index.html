@@ -191,49 +191,16 @@
       position: fixed;
       background: rgba(20, 20, 20, 0.95);
       border: 1px solid rgba(255, 255, 255, 0.2);
-      padding: 10px 14px;
-      font-size: 0.75rem;
+      padding: 6px 10px;
+      font-size: 0.8rem;
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.15s ease;
       z-index: 100;
-      max-width: 200px;
-    }
-
-    #hover-tooltip.visible {
-      opacity: 1;
-    }
-
-    #hover-tooltip .ship-name {
-      font-size: 0.85rem;
-      margin-bottom: 6px;
       color: rgba(255, 255, 255, 0.95);
     }
 
-    #hover-tooltip .ship-detail {
-      opacity: 0.6;
-      margin-top: 3px;
-    }
-
-    #hover-tooltip .ship-image-container {
-      margin-top: 8px;
-      display: none;
-    }
-
-    #hover-tooltip .ship-image-container.has-image {
-      display: block;
-    }
-
-    #hover-tooltip .ship-image {
-      width: 100%;
-      max-width: 160px;
-      height: auto;
-      border-radius: 3px;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
-
-    #hover-tooltip .ship-image.loaded {
+    #hover-tooltip.visible {
       opacity: 1;
     }
 
@@ -320,6 +287,78 @@
       z-index: 999;
     }
 
+    /* Zone Navigation */
+    .zone-arrow {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.5);
+      font-family: 'Courier New', monospace;
+      font-size: 24px;
+      width: 48px;
+      height: 80px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .zone-arrow:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(100, 255, 150, 0.8);
+      border-color: rgba(100, 255, 150, 0.3);
+      box-shadow: 0 0 20px rgba(100, 255, 150, 0.1);
+    }
+
+    .zone-arrow:disabled {
+      opacity: 0.2;
+      cursor: default;
+    }
+
+    #zone-indicator {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      z-index: 5;
+    }
+
+    #zone-indicator.visible {
+      opacity: 1;
+    }
+
+    #zone-name {
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 6px;
+    }
+
+    #zone-dots {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .zone-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    .zone-dot.active {
+      background: rgba(100, 255, 150, 0.7);
+      box-shadow: 0 0 8px rgba(100, 255, 150, 0.5);
+    }
+
     @media (max-width: 900px) {
       #main-container {
         flex-direction: column;
@@ -353,11 +392,24 @@
         letter-spacing: 0.1em;
         white-space: normal;
       }
+
+      .zone-arrow {
+        width: 60px;
+        height: 44px;
+        font-size: 20px;
+      }
+
+      #zone-indicator {
+        top: auto;
+        bottom: 50px;
+      }
     }
   </style>
 </head>
 <body>
   <div id="main-container">
+    <button id="zone-prev" class="zone-arrow" aria-label="Previous zone" disabled>&lt;</button>
+
     <div id="canvas-container">
       <canvas id="sonar"></canvas>
       <div id="start-screen">
@@ -365,8 +417,17 @@
         <p>click anywhere to begin</p>
         <p class="ios-hint">If you're using mobile, please switch off silent mode.</p>
       </div>
+      <div id="zone-indicator">
+        <div id="zone-name">DOVER STRAIT</div>
+        <div id="zone-dots">
+          <span class="zone-dot active"></span>
+          <span class="zone-dot"></span>
+        </div>
+      </div>
       <button id="fullscreen-btn" title="Toggle fullscreen">⛶</button>
     </div>
+
+    <button id="zone-next" class="zone-arrow" aria-label="Next zone">&gt;</button>
 
     <div id="info-panel">
       <div class="info-section">
@@ -407,14 +468,7 @@
     </div>
   </div>
 
-  <div id="hover-tooltip">
-    <div class="ship-name"></div>
-    <div class="ship-detail speed"></div>
-    <div class="ship-detail course"></div>
-    <div class="ship-image-container">
-      <img class="ship-image" alt="" />
-    </div>
-  </div>
+  <div id="hover-tooltip"></div>
 
   <div id="debug-hint">Press D for audio controls</div>
 
