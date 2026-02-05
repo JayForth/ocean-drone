@@ -18,7 +18,8 @@ const PORT = process.env.PORT || 3001;
 // Multi-zone bounding boxes
 const ZONE_BOUNDING_BOXES = {
   dover: { min: [50.85, 1.0], max: [51.25, 2.0] },
-  helsinki: { min: [59.35, 23.5], max: [60.25, 26.0] }
+  helsinki: { min: [59.35, 23.5], max: [60.25, 26.0] },
+  singapore: { min: [1.15, 103.55], max: [1.35, 104.15] }
 };
 
 // Combined bounding boxes for aisstream.io subscription

@@ -51,10 +51,35 @@ export const ZONES = {
       padFilterFreq: 650,
       chordCycleTime: 24
     }
+  },
+  singapore: {
+    id: 'singapore',
+    name: 'Singapore Harbor',
+    description: 'World\'s busiest port, gateway to the Strait of Malacca',
+    boundingBox: {
+      minLat: 1.15,
+      minLon: 103.55,
+      maxLat: 1.35,
+      maxLon: 104.15
+    },
+    coastlineUrl: '/data/singapore-coastline.geojson',
+    // Tropical, dense, warm - busy port energy
+    audio: {
+      modeTransitionTime: 25,
+      reverbDecay: 7,
+      reverbWet: 0.35,
+      noteRelease: 8,
+      oceanLfoFreq: 0.1,
+      oceanVolume: -32,
+      padVolume: -40,
+      filterFreq: 2600,
+      padFilterFreq: 900,
+      chordCycleTime: 15
+    }
   }
 };
 
-export const ZONE_ORDER = ['dover', 'helsinki'];
+export const ZONE_ORDER = ['dover', 'helsinki', 'singapore'];
 export const DEFAULT_ZONE = 'dover';
 
 // Current active bounding box (updated when zone changes)
