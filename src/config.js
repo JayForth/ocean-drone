@@ -4,7 +4,7 @@
 export const ZONES = {
   dover: {
     id: 'dover',
-    name: 'Dover Strait',
+    name: 'English Channel',
     description: 'UK-France, busiest short strait',
     boundingBox: {
       minLat: 50.88,
@@ -38,18 +38,17 @@ export const ZONES = {
       maxLon: 26.0
     },
     coastlineUrl: '/data/helsinki-coastline.geojson',
-    // Nordic, spacious - Baltic feel
     audio: {
-      modeTransitionTime: 35,
-      reverbDecay: 12,
-      reverbWet: 0.5,
-      noteRelease: 10,
-      oceanLfoFreq: 0.05,
-      oceanVolume: -28,
-      padVolume: -37,
-      filterFreq: 1800,
-      padFilterFreq: 650,
-      chordCycleTime: 24
+      modeTransitionTime: 30,
+      reverbDecay: 9,
+      reverbWet: 0.4,
+      noteRelease: 9.2,
+      oceanLfoFreq: 0.08,
+      oceanVolume: -30,
+      padVolume: -39,
+      filterFreq: 2200,
+      padFilterFreq: 800,
+      chordCycleTime: 18
     }
   },
   singapore: {
@@ -63,18 +62,17 @@ export const ZONES = {
       maxLon: 104.15
     },
     coastlineUrl: '/data/singapore-coastline.geojson',
-    // Tropical, dense, warm - busy port energy
     audio: {
-      modeTransitionTime: 25,
-      reverbDecay: 7,
-      reverbWet: 0.35,
-      noteRelease: 8,
-      oceanLfoFreq: 0.1,
-      oceanVolume: -32,
-      padVolume: -40,
-      filterFreq: 2600,
-      padFilterFreq: 900,
-      chordCycleTime: 15
+      modeTransitionTime: 30,
+      reverbDecay: 9,
+      reverbWet: 0.4,
+      noteRelease: 9.2,
+      oceanLfoFreq: 0.08,
+      oceanVolume: -30,
+      padVolume: -39,
+      filterFreq: 2200,
+      padFilterFreq: 800,
+      chordCycleTime: 18
     }
   }
 };

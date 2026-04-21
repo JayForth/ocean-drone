@@ -1,1 +1,29 @@
-{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"Singapore South Coast"},"geometry":{"type":"LineString","coordinates":[[103.60,1.26],[103.65,1.27],[103.70,1.28],[103.75,1.27],[103.80,1.26],[103.82,1.25],[103.85,1.26],[103.88,1.27],[103.90,1.28],[103.95,1.29],[104.00,1.30],[104.05,1.31],[104.10,1.32]]}},{"type":"Feature","properties":{"name":"Sentosa"},"geometry":{"type":"LineString","coordinates":[[103.82,1.24],[103.83,1.25],[103.85,1.25],[103.86,1.24],[103.85,1.23],[103.83,1.23],[103.82,1.24]]}},{"type":"Feature","properties":{"name":"Batam North Coast"},"geometry":{"type":"LineString","coordinates":[[103.90,1.17],[103.95,1.18],[104.00,1.19],[104.05,1.18],[104.10,1.17]]}},{"type":"Feature","properties":{"name":"Indonesian Islands"},"geometry":{"type":"LineString","coordinates":[[103.60,1.18],[103.65,1.19],[103.70,1.18],[103.75,1.17],[103.80,1.18],[103.85,1.17]]}}]}
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"name": "Singapore Coast"},
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[103.55,1.35],[103.60,1.33],[103.64,1.32],[103.68,1.31],[103.72,1.30],[103.76,1.29],[103.80,1.29],[103.84,1.29],[103.87,1.30],[103.90,1.30],[103.94,1.31],[103.98,1.32],[104.02,1.34],[104.05,1.35],[104.10,1.35],[104.15,1.35]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Singapore", "type": "port"},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [103.84, 1.29]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Changi", "type": "port"},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [104.05, 1.35]
+      }
+    }
+  ]
+}

@@ -83,9 +83,12 @@ visual.onShipHover = (ship, screenX, screenY) => {
   }
 };
 
+const mobileShipCountEl = document.getElementById('ship-count-mobile');
+
 function updateShipCount() {
   const count = shipTracker.getShipCount();
   shipCountEl.textContent = count;
+  if (mobileShipCountEl) mobileShipCountEl.textContent = count;
 }
 
 // Main render loop
@@ -197,51 +200,80 @@ function updateZoneUI() {
   });
 
   // Update page title and info panel
-  document.title = `The Song of ${zone.name}`;
+  document.title = `Ambient Boats — ${zone.name}`;
   if (infoPanelTitle) {
-    infoPanelTitle.textContent = `THE SONG OF ${zone.name.toUpperCase()}`;
+    infoPanelTitle.textContent = zone.name.toUpperCase();
   }
 }
 
-// Handle zone change
+// Handle zone change with porthole pan transition
 zoneManager.onZoneChange = (newZone, prevZone) => {
-  console.log(`Switching from ${prevZone.name} to ${newZone.name}`);
+  if (visual.transitioning) return;
 
-  // Update UI
-  updateZoneUI();
+  const dir = zoneDirection;
 
-  // Transition audio to new preset
-  audioEngine.applyZonePreset(newZone.audio, 4);
-
-  // Switch ship tracker to new zone (clears ships and requests cached ships)
-  shipTracker.setZone(newZone);
-
-  // Clear visual immediately
-  visual.clearAllShips();
-
-  // Load new coastline (graceful fallback if missing)
-  coastlineRenderer.load(newZone.coastlineUrl)
-    .then(() => visual.setCoastlineRenderer(coastlineRenderer))
-    .catch(err => console.warn('Coastline load failed for zone:', err));
+  visual.startTransition(dir, () => {
+    // Runs immediately — snapshot captures old state, this sets up new state
+    updateZoneUI();
+    audioEngine.applyZonePreset(newZone.audio, 4);
+    audioEngine.clearPingQueue();
+    shipTracker.setZone(newZone);
+    visual.clearAllShips();
+    coastlineRenderer.load(newZone.coastlineUrl)
+      .then(() => visual.setCoastlineRenderer(coastlineRenderer))
+      .catch(err => console.warn('Coastline load failed for zone:', err));
+  });
 };
+
+// Zone navigation state
+let zoneDirection = 1;
 
 // Zone button handlers
 zonePrevBtn.addEventListener('click', (e) => {
   e.stopPropagation();
+  zoneDirection = -1;
   zoneManager.goPrev();
 });
 
 zoneNextBtn.addEventListener('click', (e) => {
   e.stopPropagation();
+  zoneDirection = 1;
   zoneManager.goNext();
 });
 
 // Keyboard navigation for zones
 document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft') {
+    zoneDirection = -1;
     zoneManager.goPrev();
   } else if (e.key === 'ArrowRight') {
+    zoneDirection = 1;
     zoneManager.goNext();
+  }
+});
+
+// Touch swipe for zone navigation (mobile)
+let touchStartX = 0;
+let touchStartY = 0;
+
+canvas.addEventListener('touchstart', (e) => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+canvas.addEventListener('touchend', (e) => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+
+  // Only trigger if horizontal swipe is dominant and significant
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 2) {
+    if (dx < 0) {
+      zoneDirection = 1;
+      zoneManager.goNext();
+    } else {
+      zoneDirection = -1;
+      zoneManager.goPrev();
+    }
   }
 });
 

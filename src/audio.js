@@ -101,6 +101,11 @@ class AudioEngine {
     this.shipTimbres = new Map(); // MMSI -> timbre index
     this.shipNoteIndex = new Map(); // MMSI -> current position in scale (cycles each ping)
 
+    // Ping stagger queue - prevents audio overload in dense clusters
+    this.pingQueue = [];
+    this.pingTimer = null;
+    this.lastPingTime = 0;
+
     // Pad synth state (two synths for crossfading between modes)
     this.padSynthA = null;
     this.padFilterA = null;
@@ -374,17 +379,49 @@ class AudioEngine {
   }
 
   // Trigger a ping for a ship (called when sweep passes over it)
+  // Queues pings and staggers playback to prevent audio overload in dense clusters
   ping(ship) {
     if (!this.isStarted) return;
 
     // Avoid pinging the same ship multiple times per sweep
     if (this.recentPings.has(ship.mmsi)) return;
     this.recentPings.add(ship.mmsi);
-
-    // Clear from recent after a short delay
     setTimeout(() => this.recentPings.delete(ship.mmsi), 400);
 
-    // Position-based note selection (consistent, blends into background)
+    const now = performance.now();
+    const minInterval = 60;
+
+    // If nothing queued and enough time since last ping, play immediately
+    if (this.pingQueue.length === 0 && now - this.lastPingTime >= minInterval) {
+      this.playPing(ship);
+      this.lastPingTime = now;
+    } else {
+      // Queue it and start draining
+      this.pingQueue.push(ship);
+      if (!this.pingTimer) {
+        const delay = Math.max(0, minInterval - (now - this.lastPingTime));
+        this.pingTimer = setTimeout(() => this.drainPingQueue(), delay);
+      }
+    }
+  }
+
+  drainPingQueue() {
+    this.pingTimer = null;
+    if (this.pingQueue.length === 0) return;
+
+    const ship = this.pingQueue.shift();
+    this.playPing(ship);
+    this.lastPingTime = performance.now();
+
+    if (this.pingQueue.length > 0) {
+      // Adaptive interval: spread remaining pings over ~600ms total
+      // More queued = faster spacing, but clamped between 30-120ms
+      const interval = Math.min(120, Math.max(30, 600 / (this.pingQueue.length + 1)));
+      this.pingTimer = setTimeout(() => this.drainPingQueue(), interval);
+    }
+  }
+
+  playPing(ship) {
     const note = this.positionToNote(ship.y);
     const timbreIndex = this.getTimbreIndex(ship.mmsi);
     const detune = this.getDetune(ship.mmsi);
@@ -396,15 +433,22 @@ class AudioEngine {
     const distance = Math.sqrt(dx * dx + dy * dy);
     const volume = Math.max(-24, -8 - distance * 20);
 
-    // Apply detune temporarily
     synth.set({ detune: detune });
-
-    // Trigger the note
     synth.triggerAttackRelease(note, '8n', undefined, Tone.dbToGain(volume));
   }
 
   getActivePings() {
     return this.recentPings.size;
+  }
+
+  // Flush queued ship pings — called on zone change so old-zone pings don't leak
+  clearPingQueue() {
+    this.pingQueue.length = 0;
+    if (this.pingTimer) {
+      clearTimeout(this.pingTimer);
+      this.pingTimer = null;
+    }
+    this.recentPings.clear();
   }
 
   // Runtime parameter setters for debug panel

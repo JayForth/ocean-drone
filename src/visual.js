@@ -16,6 +16,13 @@ class VisualRenderer {
     this.mouseX = 0;
     this.mouseY = 0;
     this.coastlineRenderer = null; // Optional coastline renderer
+    this.transitionOffsetX = 0;
+    this.transitioning = false;
+    this.transitionDir = 0;
+    this.transitionTime = 0;
+    this.transitionDuration = 0.4;
+    this.offscreenCanvas = null;
+    this.size = 0;
     this.resize();
 
     window.addEventListener('resize', () => this.resize());
@@ -37,11 +44,11 @@ class VisualRenderer {
       // In fullscreen, use most of the available space
       size = Math.min(window.innerWidth, window.innerHeight) - 40;
     } else if (isMobile) {
-      // On mobile, use most of the width, leave room for panel below
-      size = Math.min(window.innerWidth - 40, window.innerHeight * 0.6);
+      // On mobile, radar is the hero — fill width, leave room for bottom bar
+      size = Math.min(window.innerWidth - 16, window.innerHeight - 100);
     } else {
-      // On desktop, account for side panel
-      const maxSize = Math.min(window.innerWidth - 320, window.innerHeight - 40);
+      // On desktop, account for side panel and header
+      const maxSize = Math.min(window.innerWidth - 320, window.innerHeight - 100);
       size = maxSize * 0.85;
     }
     size = Math.max(300, size);
@@ -56,6 +63,7 @@ class VisualRenderer {
     // Scale context to match DPR
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+    this.size = size;
     this.centerX = size / 2;
     this.centerY = size / 2;
     this.radius = size / 2 - 25;
@@ -232,38 +240,62 @@ class VisualRenderer {
     const ctx = this.ctx;
     const { centerX, centerY, radius } = this;
 
-    // Update wave animation time
     this.waveTime += deltaTime;
-
-    // Update sweep (smooth visuals when tab active)
     this.updateSweep(deltaTime);
+
+    if (this.transitioning) {
+      this.updateTransition(deltaTime);
+    }
 
     // Clear canvas
     ctx.fillStyle = VISUAL.bgColor;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw wave animation (behind everything)
-    this.drawWaves();
+    // --- Map content inside the porthole ---
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius - 1, 0, Math.PI * 2);
+    ctx.clip();
 
-    // Draw coastlines (behind sonar grid and ships)
-    if (this.coastlineRenderer) {
-      this.coastlineRenderer.draw(ctx, centerX, centerY, radius);
+    if (this.transitioning && this.offscreenCanvas) {
+      const slideDistance = this.radius * 2;
+
+      // Old zone (captured snapshot) sliding out
+      ctx.save();
+      ctx.translate(this.transitionOffsetX, 0);
+      ctx.drawImage(this.offscreenCanvas, 0, 0, this.size, this.size);
+      ctx.restore();
+
+      // New zone (live content) sliding in adjacent
+      ctx.save();
+      ctx.translate(this.transitionOffsetX + this.transitionDir * slideDistance, 0);
+      this.renderContent(deltaTime);
+      ctx.restore();
+    } else {
+      this.renderContent(deltaTime);
     }
 
-    // Draw sonar background
-    this.drawSonarBackground();
+    ctx.restore();
 
-    // Update ships
+    // --- Fixed porthole frame (outer ring + compass, never moves) ---
+    this.drawSonarFrame();
+  }
+
+  renderContent(deltaTime) {
+    this.drawWaves();
+
+    if (this.coastlineRenderer) {
+      this.coastlineRenderer.draw(this.ctx, this.centerX, this.centerY, this.radius);
+    }
+
+    this.drawSonarGrid();
+
     for (const [mmsi, ship] of this.ships) {
-      // Smooth position interpolation
       const lerp = 0.05;
       ship.currentX += (ship.targetX - ship.currentX) * lerp;
       ship.currentY += (ship.targetY - ship.currentY) * lerp;
-
-      // Decay ping brightness
       ship.pingBrightness = Math.max(0, ship.pingBrightness - deltaTime * 2);
 
-      // Update trail - only add point if ship moved enough
       const lastTrailPoint = ship.trail[0];
       if (!lastTrailPoint) {
         ship.trail.unshift({ x: ship.currentX, y: ship.currentY });
@@ -279,7 +311,6 @@ class VisualRenderer {
         }
       }
 
-      // Fade in/out
       if (ship.removing) {
         ship.opacity -= deltaTime * 0.5;
         if (ship.opacity <= 0) {
@@ -290,14 +321,10 @@ class VisualRenderer {
         ship.opacity = Math.min(1, ship.opacity + deltaTime * 0.5);
       }
 
-      // Draw trail first (behind ship)
       this.drawTrail(ship);
-
-      // Draw ship
       this.drawShip(ship);
     }
 
-    // Draw radar sweep (on top)
     this.drawSweep();
   }
 
@@ -337,7 +364,7 @@ class VisualRenderer {
     const hoverBoost = isHovered ? 0.3 : 0;
 
     // Scale ship size based on radar size (base: 400px radius)
-    const scale = Math.max(0.5, this.radius / 400);
+    const scale = Math.max(0.7, this.radius / 400);
     const size = (VISUAL.shipSize + brightness * 4 + (isHovered ? 2 : 0)) * scale;
     const glowSize = (VISUAL.glowSize + brightness * 15 + (isHovered ? 8 : 0)) * scale;
 
@@ -461,18 +488,12 @@ class VisualRenderer {
     ctx.restore();
   }
 
-  drawSonarBackground() {
+  // Inner grid — moves with content during zone transitions
+  drawSonarGrid() {
     const ctx = this.ctx;
     const { centerX, centerY, radius } = this;
 
-    // Outer circle
     ctx.strokeStyle = VISUAL.ringColor;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Concentric rings
     ctx.lineWidth = 1;
     for (let i = 1; i <= 3; i++) {
       ctx.beginPath();
@@ -480,7 +501,6 @@ class VisualRenderer {
       ctx.stroke();
     }
 
-    // Cross lines
     ctx.beginPath();
     ctx.moveTo(centerX - radius, centerY);
     ctx.lineTo(centerX + radius, centerY);
@@ -488,32 +508,33 @@ class VisualRenderer {
     ctx.lineTo(centerX, centerY + radius);
     ctx.stroke();
 
-    // Center dot
     ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.beginPath();
     ctx.arc(centerX, centerY, 3, 0, Math.PI * 2);
     ctx.fill();
+  }
 
-    // Compass markers and labels
+  // Outer ring + compass labels — stays fixed (porthole frame)
+  drawSonarFrame() {
+    const ctx = this.ctx;
+    const { centerX, centerY, radius } = this;
+
+    ctx.strokeStyle = VISUAL.ringColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
     ctx.font = '12px "Courier New", monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // North (top)
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.fillText('N', centerX, centerY - radius - 14);
-
-    // South (bottom)
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = '12px "Courier New", monospace';
     ctx.fillText('S', centerX, centerY + radius + 14);
 
-    // East (right)
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.font = '12px "Courier New", monospace';
     ctx.fillText('E', centerX + radius + 14, centerY);
-
-    // West (left)
     ctx.fillText('W', centerX - radius - 14, centerY);
   }
 
@@ -557,6 +578,41 @@ class VisualRenderer {
     this.sweepSpeed = speed;
   }
 
+  startTransition(direction, onSwap) {
+    // Capture current frame as snapshot
+    if (!this.offscreenCanvas) {
+      this.offscreenCanvas = document.createElement('canvas');
+    }
+    this.offscreenCanvas.width = this.canvas.width;
+    this.offscreenCanvas.height = this.canvas.height;
+    this.offscreenCanvas.getContext('2d').drawImage(this.canvas, 0, 0);
+
+    // Swap zone data immediately (hidden by transition)
+    if (onSwap) onSwap();
+
+    this.transitioning = true;
+    this.transitionDir = direction;
+    this.transitionTime = 0;
+  }
+
+  updateTransition(deltaTime) {
+    this.transitionTime += deltaTime;
+
+    if (this.transitionTime >= this.transitionDuration) {
+      this.transitioning = false;
+      this.transitionOffsetX = 0;
+      return;
+    }
+
+    // Ease in-out
+    const t = this.transitionTime / this.transitionDuration;
+    const eased = t < 0.5
+      ? 2 * t * t
+      : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+    this.transitionOffsetX = -this.transitionDir * this.radius * 2 * eased;
+  }
+
   // Update sweep and check for pings (can run independently of render)
   updateSweep(deltaTime) {
     this.prevSweepAngle = this.sweepAngle;
@@ -564,6 +620,10 @@ class VisualRenderer {
     if (this.sweepAngle > Math.PI * 2) {
       this.sweepAngle -= Math.PI * 2;
     }
+
+    // Suppress pings during zone-slide transition — ships arriving mid-slide
+    // from the server's cached-ships burst would otherwise stack up.
+    if (this.transitioning) return;
 
     // Check for sweep collisions
     for (const [mmsi, ship] of this.ships) {
