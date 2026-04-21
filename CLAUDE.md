@@ -44,11 +44,12 @@ Get a free API key from https://aisstream.io
 
 ## Production
 
-Deployed on Railway. In production, the server serves both static files and the WebSocket endpoint on the same port.
+Deployed on **Fly.io** (app: `ocean-drone`, region: `lhr`). In production, the server serves both static files and the WebSocket endpoint on the same port (8080 internally, mapped via `fly.toml`).
 
 ```bash
 npm run build   # Build frontend to dist/
-npm start       # Run production server
+npm start       # Run production server locally
+fly deploy      # Ship to production
 ```
 
 ## Architecture
@@ -103,8 +104,8 @@ When making changes to this codebase, **always update the changelog below** so f
 
 ### Deployment
 
-- **Production URL**: https://ocean-drone-production.up.railway.app/
-- **Deploy command**: `railway up` (from project root)
+- **Platform**: Fly.io (app `ocean-drone`, region `lhr`)
+- **Deploy command**: `fly deploy` (from project root)
 - **Never deploy without user confirmation**
 - Use `git stash` to save experimental changes before deploying if needed
 
@@ -151,6 +152,16 @@ The app supports multiple shipping zones. Here's how it works:
 ---
 
 ## Changelog
+
+**2026-04-21** - Rebrand to "Ambient Boats" + fix ping leak between zones
+- Renamed piece from "The Song of Dover Strait" to "Ambient Boats"; Dover zone renamed "English Channel"
+- New top header with title + tagline; mobile layout overhauled (radar as hero, info panel hidden, swipe-to-switch zones, bottom vessel count)
+- Porthole slide transition between zones (offscreen snapshot + eased pan); outer ring/compass stay fixed
+- Ping stagger queue in audio engine to prevent audio overload in dense clusters
+- Flattened all zone audio presets to the Dover defaults (variants removed)
+- Moved deploy platform from Railway to Fly.io (`Dockerfile`, `fly.toml`, `.dockerignore`)
+- Fix: ship-ping leak between zones — `audioEngine.clearPingQueue()` called on zone change; sweep pings suppressed during slide transition
+- Files: `index.html`, `src/config.js`, `src/audio.js`, `src/visual.js`, `src/main.js`, `public/data/singapore-coastline.geojson`, `Dockerfile`, `fly.toml`, `.dockerignore`
 
 **2025-01-12** - Simplified to Dover + Gibraltar (Alboran Sea)
 - Replaced experimental zones (Suez, Singapore, Liverpool, Solent) with Gibraltar/Alboran Sea
